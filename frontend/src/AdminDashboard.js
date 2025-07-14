@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function calculateDuration(start, end) {
   if (!start || !end) return 0;
@@ -37,7 +38,7 @@ export default function AdminDashboard() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   // Month options for 2025 and 2026
-  const diaryYears = [2025, 2026];
+  const diaryYears = [2025];
   const diaryMonthOptions = diaryYears.flatMap(year =>
     Array.from({ length: 12 }, (_, i) => {
       const month = String(i + 1).padStart(2, '0');
@@ -54,6 +55,10 @@ export default function AdminDashboard() {
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     return ym === selectedDiaryMonth;
   });
+
+  const [showCourseCompletion, setShowCourseCompletion] = useState(false);
+  const [courseCompletionData, setCourseCompletionData] = useState([]);
+  const [loadingCompletion, setLoadingCompletion] = useState(false);
 
   useEffect(() => {
     fetch('http://localhost:5000/api/diary-entries')
@@ -164,21 +169,96 @@ export default function AdminDashboard() {
   // Handler for Total Lectures card click
   const handleTotalLecturesClick = () => {
     setShowCourseSummary(s => {
-      if (!s) setShowTimeOffAnalytics(false); // If opening, close the other
+      if (!s) {
+        setShowTimeOffAnalytics(false);
+        setShowCourseCompletion(false);
+      }
       return !s;
     });
   };
   // Handler for Total Time-Off card click
   const handleTotalTimeOffClick = () => {
     setShowTimeOffAnalytics(s => {
-      if (!s) setShowCourseSummary(false); // If opening, close the other
+      if (!s) {
+        setShowCourseSummary(false);
+        setShowCourseCompletion(false);
+      }
       return !s;
     });
   };
 
+  const handleTotalCoursesTaughtClick = async () => {
+    setShowCourseCompletion(s => {
+      if (!s) {
+        setShowCourseSummary(false);
+        setShowTimeOffAnalytics(false);
+        fetchCourseCompletionAnalytics();
+      }
+      return !s;
+    });
+  };
+
+  async function fetchCourseCompletionAnalytics() {
+    setLoadingCompletion(true);
+    try {
+      // 1. Fetch all courses
+      const coursesRes = await fetch('http://localhost:5000/api/courses');
+      const courses = await coursesRes.json();
+      // 2. For each course, fetch all subjects (for all semesters 1-6)
+      const courseAnalytics = await Promise.all(courses.map(async (course) => {
+        let allSubjects = [];
+        for (let sem = 1; sem <= 6; sem++) {
+          const subjectsRes = await fetch(`http://localhost:5000/api/subjects?course_id=${course.id}&semester=Semester%20${sem}`);
+          const subjects = await subjectsRes.json();
+          allSubjects = allSubjects.concat(subjects);
+        }
+        // 3. For each subject, fetch all topics
+        let allTopics = [];
+        for (let subj of allSubjects) {
+          const topicsRes = await fetch(`http://localhost:5000/api/topics?subject_id=${subj.id}`);
+          const topics = await topicsRes.json();
+          allTopics = allTopics.concat(topics.map(t => ({ ...t, subjectName: subj.name })));
+        }
+        // 4. Count unique topics covered in diary entries for this course
+        const courseEntries = entries.filter(e => e.course_name === course.name);
+        const coveredTopics = new Set(courseEntries.map(e => e.topic_covered && e.topic_covered.trim()).filter(Boolean));
+        // 5. Calculate completion
+        const totalTopics = allTopics.length;
+        const coveredCount = allTopics.filter(t => coveredTopics.has(t.name)).length;
+        const percent = totalTopics > 0 ? (coveredCount / totalTopics) * 100 : 0;
+        return {
+          courseName: course.name,
+          totalTopics,
+          coveredCount,
+          percent: percent.toFixed(1),
+        };
+      }));
+      setCourseCompletionData(courseAnalytics);
+    } catch (err) {
+      setCourseCompletionData([]);
+    }
+    setLoadingCompletion(false);
+  }
+
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200 py-10">
       <div className="backdrop-blur-2xl bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-screen-xl flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
+        <div className="w-full flex justify-end items-center mb-4">
+          <button
+            onClick={handleLogout}
+            className="px-6 py-2 rounded-xl border border-white/30 bg-white/30 text-blue-800 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/50 hover:text-blue-900 transition"
+            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
+            Logout
+          </button>
+        </div>
         <h1 className="text-4xl font-extrabold text-blue-900 mb-10 text-center drop-shadow">Admin Dashboard</h1>
         <div className="flex flex-col sm:flex-row gap-6 w-full mb-10">
           <div onClick={handleTotalLecturesClick} style={{cursor:'pointer', flex:1}}>
@@ -187,7 +267,9 @@ export default function AdminDashboard() {
           <div onClick={handleTotalTimeOffClick} style={{cursor:'pointer', flex:1}}>
             <StatCard title="Total Time-Off" value={totalTimeOff} />
           </div>
-          <StatCard title="Total Courses Taught" value={totalCoursesTaught} />
+          <div onClick={handleTotalCoursesTaughtClick} style={{cursor:'pointer', flex:1}}>
+            <StatCard title="Total Courses Taught" value={totalCoursesTaught} />
+          </div>
         </div>
         {/* Course summary table below Total Lectures */}
         {showCourseSummary && (
@@ -369,6 +451,59 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+        {/* Course Completion Analytics expandable section */}
+        {showCourseCompletion && (
+          <div className="w-full mb-10">
+            <div className="bg-white/40 backdrop-blur-lg rounded-xl shadow p-6 border border-white/30">
+              <h2 className="text-2xl font-bold text-blue-800 mb-4">Course Completion Analytics</h2>
+              {loadingCompletion ? (
+                <div className="text-blue-700 text-center py-8 font-semibold">Loading analytics...</div>
+              ) : courseCompletionData.length === 0 ? (
+                <div className="text-gray-400 text-center py-8">No data available.</div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
+                  <thead className="bg-blue-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Course</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Topics Covered</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Topics</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Completion %</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Progress</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {courseCompletionData.map((row, idx) => (
+                      <tr key={row.courseName} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                        <td className="px-4 py-2 font-semibold text-blue-800">{row.courseName}</td>
+                        <td className="px-4 py-2">{row.coveredCount}</td>
+                        <td className="px-4 py-2">{row.totalTopics}</td>
+                        <td className="px-4 py-2">{row.percent}%</td>
+                        <td className="px-4 py-2">
+                          <div className="w-full h-5 bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 rounded-full shadow-inner relative overflow-hidden">
+                            <div
+                              className="h-5 rounded-full transition-all flex items-center justify-center bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 shadow"
+                              style={{ width: `${row.percent}%`, minWidth: '2rem', position: 'absolute', left: 0, top: 0 }}
+                            >
+                              <span className="w-full text-center font-bold text-white text-xs drop-shadow" style={{ position: 'relative', zIndex: 2 }}>
+                                {row.percent}%
+                              </span>
+                            </div>
+                            {/* Always show the label, even if bar is very small */}
+                            {parseFloat(row.percent) < 15 && (
+                              <span className="absolute left-2 top-0 h-5 flex items-center font-bold text-blue-700 text-xs" style={{ zIndex: 1 }}>
+                                {row.percent}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         )}

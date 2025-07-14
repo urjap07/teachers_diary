@@ -50,7 +50,7 @@ export default function Login({ onLoginSuccess }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-md flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
-        <h2 className="text-3xl font-extrabold text-blue-800 mb-8 text-center drop-shadow">Teacher Login</h2>
+        <h1 className="text-4xl font-extrabold text-blue-900 mb-8 text-center drop-shadow">Login</h1>
         <form onSubmit={handleSubmit} className="w-full">
           <div className="mb-6">
             <label className="block text-gray-800 mb-2 font-semibold">Email or Mobile</label>
