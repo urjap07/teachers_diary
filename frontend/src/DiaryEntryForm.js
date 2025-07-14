@@ -112,9 +112,17 @@ export default function DiaryEntryForm({ userId }) {
     }
   };
 
+  const user = JSON.parse(localStorage.getItem('user'));
+  const userName = user?.name || user?.username || '';
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-lg relative flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
+        {userName && (
+          <div className="w-full flex justify-start items-center mb-2">
+            <span className="text-lg font-semibold text-blue-800">Welcome, {userName}!</span>
+          </div>
+        )}
         <div className="flex justify-between items-center mb-6 w-full backdrop-blur-2xl bg-white/20 border border-white/30 shadow-2xl rounded-2xl p-5" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18), 0 1.5px 8px 0 rgba(255,255,255,0.12)'}}>
           <button
             onClick={handleLogout}

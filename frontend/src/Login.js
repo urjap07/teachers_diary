@@ -2,18 +2,21 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login({ onLoginSuccess }) {
-  const [form, setForm] = useState({ identifier: '', password: '' });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'identifier') setEmail(value);
+    if (name === 'password') setPassword(value);
   };
 
   const validate = () => {
     const errs = {};
-    if (!form.identifier) errs.identifier = 'Email or Mobile is required';
-    if (!form.password) errs.password = 'Password is required';
+    if (!email) errs.identifier = 'Email or Mobile is required';
+    if (!password) errs.password = 'Password is required';
     return errs;
   };
 
@@ -26,7 +29,7 @@ export default function Login({ onLoginSuccess }) {
         const res = await fetch('http://localhost:5000/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify({ identifier: email, password }),
         });
         const data = await res.json();
         if (res.ok) {
@@ -57,7 +60,7 @@ export default function Login({ onLoginSuccess }) {
             <input
               type="text"
               name="identifier"
-              value={form.identifier}
+              value={email}
               onChange={handleChange}
               className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.identifier ? 'ring-2 ring-red-400' : ''}`}
               placeholder="Enter your email or mobile number"
@@ -69,7 +72,7 @@ export default function Login({ onLoginSuccess }) {
             <input
               type="password"
               name="password"
-              value={form.password}
+              value={password}
               onChange={handleChange}
               className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.password ? 'ring-2 ring-red-400' : ''}`}
               placeholder="Enter your password"

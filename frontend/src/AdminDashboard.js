@@ -59,6 +59,7 @@ export default function AdminDashboard() {
   const [showCourseCompletion, setShowCourseCompletion] = useState(false);
   const [courseCompletionData, setCourseCompletionData] = useState([]);
   const [loadingCompletion, setLoadingCompletion] = useState(false);
+  const [showLecturesByTeacher, setShowLecturesByTeacher] = useState(false);
 
   useEffect(() => {
     fetch('http://localhost:5000/api/diary-entries')
@@ -248,9 +249,33 @@ export default function AdminDashboard() {
     navigate('/login');
   }
 
+  const user = JSON.parse(localStorage.getItem('user'));
+  const userName = user?.name || user?.username || '';
+
+  // Group by teacher
+  const teacherStats = {};
+  entries.forEach(e => {
+    if (!e.teacher_name) return;
+    if (!teacherStats[e.teacher_name]) {
+      teacherStats[e.teacher_name] = { lectures: 0, hours: 0 };
+    }
+    teacherStats[e.teacher_name].lectures += 1;
+    teacherStats[e.teacher_name].hours += calculateDuration(e.start_time, e.end_time);
+  });
+  const teacherStatsArr = Object.entries(teacherStats).map(([name, stats]) => ({
+    name,
+    lectures: stats.lectures,
+    hours: stats.hours
+  }));
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200 py-10">
       <div className="backdrop-blur-2xl bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-screen-xl flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
+        {userName && (
+          <div className="w-full flex justify-start items-center mb-2">
+            <span className="text-lg font-semibold text-blue-800">Welcome, {userName}!</span>
+          </div>
+        )}
         <div className="w-full flex justify-end items-center mb-4">
           <button
             onClick={handleLogout}
@@ -269,6 +294,18 @@ export default function AdminDashboard() {
           </div>
           <div onClick={handleTotalCoursesTaughtClick} style={{cursor:'pointer', flex:1}}>
             <StatCard title="Total Courses Taught" value={totalCoursesTaught} />
+          </div>
+          <div onClick={() => {
+            setShowLecturesByTeacher(s => {
+              if (!s) {
+                setShowCourseSummary(false);
+                setShowTimeOffAnalytics(false);
+                setShowCourseCompletion(false);
+              }
+              return !s;
+            });
+          }} style={{cursor:'pointer', flex:1}}>
+            <StatCard title="Lectures by Teacher" value={teacherStatsArr.length} />
           </div>
         </div>
         {/* Course summary table below Total Lectures */}
@@ -504,6 +541,37 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               )}
+            </div>
+          </div>
+        )}
+        {showLecturesByTeacher && (
+          <div className="w-full mb-10">
+            <div className="bg-white/40 backdrop-blur-lg rounded-xl shadow p-6 border border-white/30">
+              <h2 className="text-2xl font-bold text-blue-800 mb-4">Lectures by Teacher</h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
+                  <thead className="bg-blue-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Teacher</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Lectures</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {teacherStatsArr.length === 0 ? (
+                      <tr><td colSpan={3} className="text-center py-4 text-gray-400">No data</td></tr>
+                    ) : (
+                      teacherStatsArr.map((row, idx) => (
+                        <tr key={row.name} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                          <td className="px-4 py-2 font-semibold text-blue-800">{row.name}</td>
+                          <td className="px-4 py-2">{row.lectures}</td>
+                          <td className="px-4 py-2">{row.hours.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

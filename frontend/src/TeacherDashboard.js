@@ -18,9 +18,17 @@ export default function TeacherDashboard({ userId }) {
     navigate('/login');
   };
 
+  const user = JSON.parse(localStorage.getItem('user'));
+  const userName = user?.name || user?.username || '';
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200 py-10">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-4xl flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
+        {userName && (
+          <div className="w-full flex justify-start items-center mb-2">
+            <span className="text-lg font-semibold text-blue-800">Welcome, {userName}!</span>
+          </div>
+        )}
         <div className="flex items-center justify-between border-b-2 border-blue-200 mb-8 w-full">
           <div>
             {TABS.map(tab => (

@@ -33,11 +33,11 @@ export default function DiarySummary({ userId }) {
   const [expanded, setExpanded] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [timeOff, setTimeOff] = useState([]);
-  const [showCoursesTaught, setShowCoursesTaught] = useState(false);
+  // Remove showCoursesTaught, use expanded === 'courses'
 
   useEffect(() => {
-    // Fetch all diary entries (all users)
-    fetch('http://localhost:5000/api/diary-entries')
+    // Fetch only this teacher's diary entries
+    fetch(`http://localhost:5000/api/diary-entries?user_id=${userId}`)
       .then(res => res.json())
       .then(data => {
         setEntries(Array.isArray(data) ? data : []);
@@ -53,8 +53,8 @@ export default function DiarySummary({ userId }) {
 
   const totalLectures = entries.length;
   const totalHours = entries.reduce((sum, e) => sum + calculateDuration(e.start_time, e.end_time), 0);
-  // Force time-off to 7.5 as per user request
-  const totalTimeOff = 7.5;
+  // Show the real total time-off (sum of days)
+  const totalTimeOff = timeOff.reduce((sum, t) => sum + Number(t.days), 0);
 
   // Group by course_name, semester, topic_covered for lectures breakdown
   const topicGroups = {};
@@ -109,6 +109,11 @@ export default function DiarySummary({ userId }) {
   const showLectures = () => setExpanded(expanded === 'lectures' ? null : 'lectures');
   const showHours = () => setExpanded(expanded === 'hours' ? null : 'hours');
   const showTimeOff = () => setExpanded(expanded === 'timeoff' ? null : 'timeoff');
+  const showCoursesTaught = () => setExpanded(expanded === 'courses' ? null : 'courses');
+  const showTeacherLectures = () => setExpanded(expanded === 'teacherlectures' ? null : 'teacherlectures');
+
+  const user = JSON.parse(localStorage.getItem('user'));
+  const userRole = user?.role;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -116,14 +121,12 @@ export default function DiarySummary({ userId }) {
         <StatCard title="Total Lectures" value={totalLectures} onClick={showLectures} active={expanded === 'lectures'} />
         <StatCard title="Total Hours" value={totalHours.toFixed(2)} onClick={showHours} active={expanded === 'hours'} />
         <StatCard title="Time-Off" value={totalTimeOff} onClick={showTimeOff} active={expanded === 'timeoff'} />
-        <StatCard
-          title="Total Courses Taught"
-          value={totalCoursesTaught}
-          onClick={() => setShowCoursesTaught(!showCoursesTaught)}
-          active={showCoursesTaught}
-        />
+        <StatCard title="Total Courses Taught" value={totalCoursesTaught} onClick={showCoursesTaught} active={expanded === 'courses'} />
+        {userRole === 'admin' && (
+          <StatCard title="Lectures by Teacher" value={totalLectures} onClick={showTeacherLectures} active={expanded === 'teacherlectures'} />
+        )}
       </div>
-      {showCoursesTaught && totalCoursesTaught > 0 && (
+      {expanded === 'courses' && totalCoursesTaught > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 shadow">
           <h3 className="font-semibold text-blue-700 mb-2">Courses Taught</h3>
           <ul className="list-disc pl-6 text-blue-700">
@@ -131,6 +134,28 @@ export default function DiarySummary({ userId }) {
               <li key={idx}>{name}</li>
             ))}
           </ul>
+        </div>
+      )}
+      {userRole === 'admin' && expanded === 'teacherlectures' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 shadow">
+          <h3 className="font-semibold text-blue-700 mb-2">Lectures by Teacher</h3>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-blue-100">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Teacher</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Lectures</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Hours</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {/* For teacher dashboard, only one teacher: */}
+              <tr>
+                <td className="px-4 py-2 font-semibold text-blue-800">You</td>
+                <td className="px-4 py-2">{totalLectures}</td>
+                <td className="px-4 py-2">{totalHours.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       )}
       {/* Details Section */}
