@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function TimeOffForm({ userId, onSuccess }) {
+export default function TimeOffForm({ userId, teacherName, onSuccess }) {
   const today = new Date().toISOString().split('T')[0];
   const [date, setDate] = useState(today);
   const [days, setDays] = useState('1');
@@ -35,6 +35,9 @@ export default function TimeOffForm({ userId, onSuccess }) {
 
   return (
     <form onSubmit={handleSubmit} className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-8 flex flex-col gap-6 max-w-lg w-full" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.25)'}}>
+      {teacherName && (
+        <h4 className="text-xl font-bold text-blue-700 mb-2 text-center">{teacherName}</h4>
+      )}
       <h4 className="text-2xl font-extrabold text-blue-800 mb-2 text-center drop-shadow">Add Time-Off</h4>
       <label>
         <span className="block text-gray-800 mb-2 font-semibold">Date</span>

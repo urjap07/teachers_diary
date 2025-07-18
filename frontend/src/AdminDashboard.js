@@ -239,24 +239,7 @@ function getWeekNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
 }
 
-// Helper: Get week of month (1-based)
-function getWeekOfMonth(date) {
-  const d = new Date(date);
-  const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
-  const dayOfWeek = firstDay.getDay(); // 0 (Sun) - 6 (Sat)
-  return Math.ceil((d.getDate() + dayOfWeek) / 7);
-}
-
 // Helper: Get number of weeks in a month
-function getWeeksInMonth(year, month) {
-  // month: 1-12
-  const firstDay = new Date(year, month - 1, 1);
-  const lastDay = new Date(year, month, 0);
-  const firstDayOfWeek = firstDay.getDay();
-  const daysInMonth = lastDay.getDate();
-  return Math.ceil((daysInMonth + firstDayOfWeek) / 7);
-}
-
 export default function AdminDashboard() {
   const [entries, setEntries] = useState([]);
   const [timeOff, setTimeOff] = useState([]);
@@ -277,7 +260,8 @@ export default function AdminDashboard() {
   const diaryYears = [2025, 2026];
   const [selectedDiaryYear, setSelectedDiaryYear] = useState(diaryYears[0]);
   const [selectedDiaryMonth, setSelectedDiaryMonth] = useState('all');
-  const [selectedDiaryWeek, setSelectedDiaryWeek] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -288,26 +272,16 @@ export default function AdminDashboard() {
     ...monthNames.map((name, i) => ({ value: (i + 1).toString(), label: name }))
   ];
 
-  // Week dropdown: number of weeks in selected month/year
-  let weeksInSelectedMonth = 5;
-  if (selectedDiaryYear !== 'all' && selectedDiaryMonth !== 'all') {
-    weeksInSelectedMonth = getWeeksInMonth(Number(selectedDiaryYear), Number(selectedDiaryMonth));
-  }
-  const weekOptions = [
-    { value: 'all', label: 'All Weeks' },
-    ...Array.from({ length: weeksInSelectedMonth }, (_, i) => ({ value: (i + 1).toString(), label: `Week ${i + 1}` }))
-  ];
-
   // Filtering logic for diary entries (week of month)
   const filteredDiaryEntries = entries.filter(e => {
     if (!e.date) return false;
     const d = new Date(e.date);
     const year = d.getFullYear();
     const month = d.getMonth() + 1;
-    const weekOfMonth = getWeekOfMonth(d);
     if (selectedDiaryYear !== 'all' && year !== Number(selectedDiaryYear)) return false;
     if (selectedDiaryMonth !== 'all' && month !== Number(selectedDiaryMonth)) return false;
-    if (selectedDiaryWeek !== 'all' && weekOfMonth !== Number(selectedDiaryWeek)) return false;
+    if (startDate && new Date(e.date) < new Date(startDate)) return false;
+    if (endDate && new Date(e.date) > new Date(endDate)) return false;
     return true;
   });
 
@@ -324,9 +298,9 @@ export default function AdminDashboard() {
           console.log(`Entry:`, e, 'Year:', year, 'Week:', week);
         }
       });
-      console.log('Selected Year:', selectedDiaryYear, 'Selected Week:', selectedDiaryWeek);
+      console.log('Selected Year:', selectedDiaryYear, 'Selected Week:', 'all'); // Removed selectedDiaryWeek from log
     }
-  }, [entries, selectedDiaryYear, selectedDiaryWeek]);
+  }, [entries, selectedDiaryYear]); // Removed selectedDiaryWeek from dependency array
 
   const [showCourseCompletion, setShowCourseCompletion] = useState(false);
   const [courseCompletionData, setCourseCompletionData] = useState([]);
@@ -964,16 +938,20 @@ export default function AdminDashboard() {
                     <option key={m.value} value={m.value}>{m.label}</option>
                   ))}
                 </select>
-                <label className="font-semibold text-blue-700 ml-4">Select Week:</label>
-                <select
-                  value={selectedDiaryWeek}
-                  onChange={e => setSelectedDiaryWeek(e.target.value)}
+                <label className="font-semibold text-blue-700 ml-4">Start Date:</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
                   className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  {weekOptions.map(w => (
-                    <option key={w.value} value={w.value}>{w.label}</option>
-                  ))}
-                </select>
+                />
+                <label className="font-semibold text-blue-700 ml-4">End Date:</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
               </div>
             </div>
             <div className="overflow-x-auto diary-log-table">

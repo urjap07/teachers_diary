@@ -19,6 +19,7 @@ export default function DiaryEntryForm({ userId }) {
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
   const [showTimeOff, setShowTimeOff] = useState(false);
+  const [isHoliday, setIsHoliday] = useState(false);
 
   const navigate = useNavigate();
 
@@ -79,6 +80,27 @@ export default function DiaryEntryForm({ userId }) {
       setForm(f => ({ ...f, topic: '' }));
     }
   }, [form.subject]);
+
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && user.role === 'teacher') {
+      fetch(`http://localhost:5000/api/time-off?user_id=${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          const today = new Date();
+          const hasHoliday = Array.isArray(data) && data.some(t => {
+            if (!t.date) return false;
+            const holidayDate = new Date(t.date);
+            return (
+              holidayDate.getFullYear() === today.getFullYear() &&
+              holidayDate.getMonth() === today.getMonth() &&
+              holidayDate.getDate() === today.getDate()
+            );
+          });
+          setIsHoliday(hasHoliday);
+        });
+    }
+  }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -175,8 +197,13 @@ export default function DiaryEntryForm({ userId }) {
           </div>
         )}
         <h2 className="text-3xl font-extrabold text-blue-800 mb-8 text-center drop-shadow">Diary Entry</h2>
+        {isHoliday && (
+          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 font-semibold rounded">
+            Today is a holiday for you. No diary entry required.
+          </div>
+        )}
         <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-lg rounded-2xl p-8 w-full mb-4" style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}>
-          <form onSubmit={handleSubmit} className="w-full">
+          <form onSubmit={handleSubmit} className="w-full" style={{ opacity: isHoliday ? 0.5 : 1, pointerEvents: isHoliday ? 'none' : 'auto' }}>
             <div className="mb-4">
               <label className="block text-gray-800 mb-2 font-semibold">Course</label>
               <select

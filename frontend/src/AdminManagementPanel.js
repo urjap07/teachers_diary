@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import TimeOffForm from './TimeOffForm';
 
 const TABS = [
   { key: 'teachers', label: 'Teachers' },
@@ -353,6 +354,75 @@ function AssignCoursesModal({ teacher, allCourses, assignedCourseIds, onClose, o
   );
 }
 
+function EditSubjectModal({ subject, allCourses, onClose, onSubmit }) {
+  const [form, setForm] = useState({ ...subject });
+  const [errors, setErrors] = useState({});
+
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    if (!form.course_id) errs.course_id = 'Course is required';
+    if (!form.semester) errs.semester = 'Semester is required';
+    return errs;
+  };
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Edit Subject</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Course</label>
+            <select name="course_id" value={form.course_id} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+              <option value="">Select course</option>
+              {allCourses.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {errors.course_id && <p className="text-red-500 text-sm mt-1">{errors.course_id}</p>}
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Semester</label>
+            <select name="semester" value={form.semester} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+              <option value="">Select semester</option>
+              {[1,2,3,4,5,6].map(num => (
+                <option key={num} value={`Semester ${num}`}>{`Semester ${num}`}</option>
+              ))}
+            </select>
+            {errors.semester && <p className="text-red-500 text-sm mt-1">{errors.semester}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Update Subject</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminManagementPanel() {
   const [activeTab, setActiveTab] = useState('teachers');
   const [teachers, setTeachers] = useState([]);
@@ -373,6 +443,14 @@ export default function AdminManagementPanel() {
   const [assignCoursesModalOpen, setAssignCoursesModalOpen] = useState(false);
   const [assignCoursesAssigned, setAssignCoursesAssigned] = useState([]);
   const [allCourses, setAllCourses] = useState([]);
+  const [holidayTeacher, setHolidayTeacher] = useState(null);
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [subjectCourses, setSubjectCourses] = useState([]);
+  const [selectedSubjectCourse, setSelectedSubjectCourse] = useState('');
+  const [selectedSubjectSemester, setSelectedSubjectSemester] = useState('');
+  const [editSubject, setEditSubject] = useState(null);
+  const [isEditingSubject, setIsEditingSubject] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -394,7 +472,22 @@ export default function AdminManagementPanel() {
         .then(data => setCourses(Array.isArray(data) ? data : []))
         .catch(() => setCourses([]));
     }
-  }, [activeTab]);
+    if (activeTab === 'subjects') {
+      // Fetch all courses for filter dropdown
+      fetch('http://localhost:5000/api/courses')
+        .then(res => res.json())
+        .then(data => setSubjectCourses(Array.isArray(data) ? data : []));
+      // Fetch all subjects (optionally filtered)
+      let url = 'http://localhost:5000/api/subjects';
+      const params = [];
+      if (selectedSubjectCourse) params.push(`course_id=${selectedSubjectCourse}`);
+      if (selectedSubjectSemester) params.push(`semester=${encodeURIComponent(selectedSubjectSemester)}`);
+      if (params.length > 0) url += '?' + params.join('&');
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setSubjects(Array.isArray(data) ? data : []));
+    }
+  }, [activeTab, selectedSubjectCourse, selectedSubjectSemester]);
 
   // Filter teachers as the user types
   useEffect(() => {
@@ -610,6 +703,31 @@ export default function AdminManagementPanel() {
     }
   };
 
+  const handleEditSubject = async (form) => {
+    const res = await fetch(`http://localhost:5000/api/subjects/${form.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Subject updated successfully!');
+      setEditSubject(null);
+      setIsEditingSubject(false);
+      // Refresh subjects list
+      let url = 'http://localhost:5000/api/subjects';
+      const params = [];
+      if (selectedSubjectCourse) params.push(`course_id=${selectedSubjectCourse}`);
+      if (selectedSubjectSemester) params.push(`semester=${encodeURIComponent(selectedSubjectSemester)}`);
+      if (params.length > 0) url += '?' + params.join('&');
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setSubjects(Array.isArray(data) ? data : []));
+    } else {
+      alert(data.message || 'Failed to update subject');
+    }
+  };
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       {/* Sidebar */}
@@ -682,6 +800,7 @@ export default function AdminManagementPanel() {
                             <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => { setDeleteTeacher(t); setIsDeleting(true); }}>Delete</button>
                             <button className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-yellow-500 text-white hover:bg-yellow-700' : 'bg-green-500 text-white hover:bg-green-700'}`} onClick={() => handleToggleActive(t)}>{t.active ? 'Make Inactive' : 'Make Active'}</button>
                             <button className="px-3 py-1 rounded bg-blue-400 text-white font-semibold hover:bg-blue-700" onClick={() => openAssignCoursesModal(t)}>Assign Courses</button>
+                            <button className="px-3 py-1 rounded bg-purple-500 text-white font-semibold hover:bg-purple-700" onClick={() => { setHolidayTeacher(t); setShowHolidayModal(true); }}>Add Holiday</button>
                           </td>
                         </tr>
                       ))
@@ -733,8 +852,58 @@ export default function AdminManagementPanel() {
               <h2 className="text-2xl font-bold text-blue-800">Manage Subjects</h2>
               <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition">+ Add Subject</button>
             </div>
-            <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200">
-              <p className="text-gray-500">[Subjects table will go here]</p>
+            <div className="flex gap-4 mb-6 items-center">
+              <label className="font-semibold text-blue-700">Course:</label>
+              <select
+                value={selectedSubjectCourse}
+                onChange={e => setSelectedSubjectCourse(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">All Courses</option>
+                {subjectCourses.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <label className="font-semibold text-blue-700 ml-4">Semester:</label>
+              <select
+                value={selectedSubjectSemester}
+                onChange={e => setSelectedSubjectSemester(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">All Semesters</option>
+                {[1,2,3,4,5,6].map(num => (
+                  <option key={num} value={`Semester ${num}`}>{`Semester ${num}`}</option>
+                ))}
+              </select>
+            </div>
+            <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200 overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Course</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Semester</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {subjects.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-4 text-gray-400">No subjects found.</td></tr>
+                  ) : (
+                    subjects.map(s => (
+                      <tr key={s.id}>
+                        <td className="px-4 py-2">{s.name}</td>
+                        <td className="px-4 py-2">{subjectCourses.find(c => c.id === s.course_id)?.name || '-'}</td>
+                        <td className="px-4 py-2">{s.semester}</td>
+                        <td className="px-4 py-2 flex gap-2">
+                          <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => { setEditSubject(s); setIsEditingSubject(true); }}>Edit</button>
+                          <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700">Delete</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
@@ -791,6 +960,32 @@ export default function AdminManagementPanel() {
           assignedCourseIds={assignCoursesAssigned}
           onClose={() => { setAssignCoursesModalOpen(false); setAssignCoursesTeacher(null); setAssignCoursesAssigned([]); }}
           onSubmit={handleAssignCourses}
+        />
+      )}
+      {showHolidayModal && holidayTeacher && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+              onClick={() => setShowHolidayModal(false)}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <TimeOffForm
+              userId={holidayTeacher.id}
+              teacherName={holidayTeacher.name}
+              onSuccess={() => setShowHolidayModal(false)}
+            />
+          </div>
+        </div>
+      )}
+      {isEditingSubject && editSubject && (
+        <EditSubjectModal
+          subject={editSubject}
+          allCourses={subjectCourses}
+          onClose={() => { setEditSubject(null); setIsEditingSubject(false); }}
+          onSubmit={handleEditSubject}
         />
       )}
     </div>
