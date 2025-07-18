@@ -28,12 +28,61 @@ function StatCard({ title, value, onClick, active, tooltip }) {
   );
 }
 
+// Helper to get month and date range string
+function getMonthAndDateRange(entries) {
+  // Only consider entries in 2025 and 2026
+  const filtered = entries.filter(e => {
+    const year = new Date(e.date).getFullYear();
+    return year === 2025 || year === 2026;
+  });
+  if (filtered.length === 0) return 'No data for 2025 or 2026';
+  // Get min and max date
+  const dates = filtered.map(e => new Date(e.date));
+  const minDate = new Date(Math.min(...dates));
+  const maxDate = new Date(Math.max(...dates));
+  // Get month string for minDate
+  const month = minDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+  // Format date range
+  const range = `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`;
+  return `Month: ${month} | Date Range: ${range}`;
+}
+
+// Month options for 2025 and 2026
+const diaryYears = [2025, 2026];
+const diaryMonthOptions = diaryYears.flatMap(year =>
+  Array.from({ length: 12 }, (_, i) => {
+    const month = String(i + 1).padStart(2, '0');
+    return {
+      value: `${year}-${month}`,
+      label: `${new Date(`${year}-${month}-01`).toLocaleString('default', { month: 'long' })} ${year}`
+    };
+  })
+);
+
 export default function DiarySummary({ userId }) {
   const [entries, setEntries] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [timeOff, setTimeOff] = useState([]);
   // Remove showCoursesTaught, use expanded === 'courses'
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  // Filter entries and timeOff by selected month
+  const filteredEntries = entries.filter(e => {
+    if (!e.date) return false;
+    const d = new Date(e.date);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return ym === selectedMonth;
+  });
+  const filteredTimeOff = timeOff.filter(t => {
+    if (!t.date) return false;
+    const d = new Date(t.date);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return ym === selectedMonth;
+  });
 
   useEffect(() => {
     // Fetch only this teacher's diary entries
@@ -128,6 +177,18 @@ export default function DiarySummary({ userId }) {
       </div>
       {expanded === 'courses' && totalCoursesTaught > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 shadow">
+          <div className="mb-4 flex items-center gap-2 justify-end">
+            <label className="font-semibold text-blue-700">Select Month:</label>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {diaryMonthOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
           <h3 className="font-semibold text-blue-700 mb-2">Courses Taught</h3>
           <ul className="list-disc pl-6 text-blue-700">
             {uniqueCourses.map((name, idx) => (
@@ -138,6 +199,18 @@ export default function DiarySummary({ userId }) {
       )}
       {userRole === 'admin' && expanded === 'teacherlectures' && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 shadow">
+          <div className="mb-4 flex items-center gap-2 justify-end">
+            <label className="font-semibold text-blue-700">Select Month:</label>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {diaryMonthOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
           <h3 className="font-semibold text-blue-700 mb-2">Lectures by Teacher</h3>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-blue-100">
@@ -161,6 +234,18 @@ export default function DiarySummary({ userId }) {
       {/* Details Section */}
       {expanded === 'lectures' && (
         <div className="bg-blue-50 p-4 rounded-lg mb-4 shadow">
+          <div className="mb-4 flex items-center gap-2 justify-end">
+            <label className="font-semibold text-blue-700">Select Month:</label>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {diaryMonthOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
           <h3 className="font-semibold mb-2 text-blue-700">Lectures Breakdown</h3>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-blue-100">
@@ -235,6 +320,18 @@ export default function DiarySummary({ userId }) {
       )}
       {expanded === 'hours' && (
         <div className="bg-blue-50 p-4 rounded-lg mb-4 shadow">
+          <div className="mb-4 flex items-center gap-2 justify-end">
+            <label className="font-semibold text-blue-700">Select Month:</label>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {diaryMonthOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
           <h3 className="font-semibold mb-2 text-blue-700">Hours Breakdown</h3>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-blue-100">
@@ -245,12 +342,12 @@ export default function DiarySummary({ userId }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {entries.length === 0 ? (
+              {filteredEntries.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="text-center py-4 text-gray-400">No data</td>
                 </tr>
               ) : (
-                entries.map(e => (
+                filteredEntries.map(e => (
                   <tr key={e.id}>
                     <td className="px-4 py-2">{e.course_name}</td>
                     <td className="px-4 py-2">{calculateDuration(e.start_time, e.end_time).toFixed(2)}</td>
@@ -264,6 +361,18 @@ export default function DiarySummary({ userId }) {
       )}
       {expanded === 'timeoff' && (
         <div className="bg-blue-50 p-4 rounded-lg mb-4 shadow">
+          <div className="mb-4 flex items-center gap-2 justify-end">
+            <label className="font-semibold text-blue-700">Select Month:</label>
+            <select
+              value={selectedMonth}
+              onChange={e => setSelectedMonth(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {diaryMonthOptions.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
           <h3 className="font-semibold mb-2 text-blue-700">Time-Off Breakdown</h3>
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-blue-100">
@@ -274,12 +383,12 @@ export default function DiarySummary({ userId }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {timeOff.length === 0 ? (
+              {filteredTimeOff.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="text-center py-4 text-gray-400">No time-off records</td>
                 </tr>
               ) : (
-                timeOff.map((t, idx) => (
+                filteredTimeOff.map((t, idx) => (
                   <tr key={idx}>
                     <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
                     <td className="px-4 py-2">{t.days}</td>

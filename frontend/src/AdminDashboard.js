@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function calculateDuration(start, end) {
@@ -13,6 +13,219 @@ function StatCard({ title, value }) {
     <div className="bg-white/30 backdrop-blur-lg rounded-xl shadow-lg p-6 flex-1 text-center border border-white/40 transition hover:scale-105 hover:shadow-2xl">
       <div className="text-gray-500 text-sm font-semibold">{title}</div>
       <div className="text-3xl font-bold text-blue-800 mt-2 drop-shadow">{value}</div>
+    </div>
+  );
+}
+
+function AddTeacherModal({ onClose, onSubmit }) {
+  const [form, setForm] = useState({ name: '', email: '', mobile: '', password: '' });
+  const [errors, setErrors] = useState({});
+
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    if (!form.email) errs.email = 'Email is required';
+    if (!form.mobile) errs.mobile = 'Mobile is required';
+    if (!form.password) errs.password = 'Password is required';
+    return errs;
+  };
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-start justify-center pt-40 z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center min-h-[60vh]">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Add Teacher</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Email</label>
+            <input type="email" name="email" value={form.email} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Mobile</label>
+            <input type="text" name="mobile" value={form.mobile} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Password</label>
+            <input type="password" name="password" value={form.password} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Teacher</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditTeacherModal({ teacher, onClose, onSubmit, tableRef, containerRef, diaryLogRowRefs, diaryLogRowCount }) {
+  const [form, setForm] = useState({ ...teacher, password: '' });
+  const [errors, setErrors] = useState({});
+
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    if (!form.email) errs.email = 'Email is required';
+    if (!form.mobile) errs.mobile = 'Mobile is required';
+    return errs;
+  };
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+
+  // Clamp modal inside container
+  const [modalStyle, setModalStyle] = useState({});
+  useEffect(() => {
+    if (tableRef && tableRef.current && containerRef && containerRef.current && diaryLogRowRefs && diaryLogRowRefs.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const modalWidth = 500;
+      const modalHeight = 520; // estimate or measure modal height
+      let left = tableRef.current.getBoundingClientRect().left + tableRef.current.getBoundingClientRect().width / 2 - modalWidth / 2 + window.scrollX;
+      // Clamp left so modal stays inside container
+      const minLeft = containerRect.left + 16 + window.scrollX; // 16px padding
+      const maxLeft = containerRect.right - modalWidth - 16 + window.scrollX; // 16px padding
+      if (left < minLeft) left = minLeft;
+      if (left > maxLeft) left = maxLeft;
+      // Position from 2nd last diary log row
+      let top = undefined;
+      if (diaryLogRowCount >= 2) {
+        const row = diaryLogRowRefs.current[diaryLogRowCount - 2];
+        if (row) {
+          const rowRect = row.getBoundingClientRect();
+          top = rowRect.bottom + 16 + window.scrollY;
+        }
+      }
+      if (top === undefined) {
+        // fallback to teachers table
+        top = tableRef.current.getBoundingClientRect().bottom + 16 + window.scrollY;
+      }
+      // Clamp top so modal stays inside container
+      const maxTop = containerRect.bottom - modalHeight - 16 + window.scrollY; // 16px padding
+      if (top > maxTop) top = maxTop;
+      setModalStyle({
+        position: 'absolute',
+        left,
+        top,
+        width: modalWidth,
+        zIndex: 1000
+      });
+    }
+  }, [tableRef, containerRef, diaryLogRowRefs, diaryLogRowCount]);
+
+  return (
+    <div style={modalStyle} className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center border border-blue-200">
+      <button
+        className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+        onClick={onClose}
+        aria-label="Close"
+      >
+        &times;
+      </button>
+      <h2 className="text-2xl font-bold text-blue-800 mb-6">Edit Teacher</h2>
+      <form onSubmit={handleSubmit} className="w-full">
+        <div className="mb-4">
+          <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+          <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-800 mb-2 font-semibold">Email</label>
+          <input type="email" name="email" value={form.email} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-800 mb-2 font-semibold">Mobile</label>
+          <input type="text" name="mobile" value={form.mobile} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-800 mb-2 font-semibold">Password (leave blank to keep unchanged)</label>
+          <input type="password" name="password" value={form.password} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-800 mb-2 font-semibold">Status</label>
+          <select name="active" value={form.active} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+            <option value={1}>Active</option>
+            <option value={0}>Inactive</option>
+          </select>
+        </div>
+        <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Update Teacher</button>
+      </form>
+    </div>
+  );
+}
+
+function ConfirmDeleteModal({ teacher, onClose, onConfirm, containerRef, teachersHeadingRef }) {
+  const [modalStyle, setModalStyle] = useState({});
+  useEffect(() => {
+    if (containerRef && containerRef.current && teachersHeadingRef && teachersHeadingRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const headingRect = teachersHeadingRef.current.getBoundingClientRect();
+      const modalWidth = 400;
+      const modalHeight = 220;
+      // Center horizontally in container
+      let left = containerRect.left + (containerRect.width - modalWidth) / 2 + window.scrollX;
+      // Place just above the Teachers heading
+      let top = headingRect.top - modalHeight - 16 + window.scrollY;
+      // Clamp left
+      const minLeft = containerRect.left + 16 + window.scrollX;
+      const maxLeft = containerRect.right - modalWidth - 16 + window.scrollX;
+      if (left < minLeft) left = minLeft;
+      if (left > maxLeft) left = maxLeft;
+      // Clamp top
+      const maxTop = containerRect.bottom - modalHeight - 16 + window.scrollY;
+      if (top > maxTop) top = maxTop;
+      setModalStyle({
+        position: 'absolute',
+        left,
+        top,
+        width: modalWidth,
+        zIndex: 1000
+      });
+    }
+  }, [containerRef, teachersHeadingRef]);
+  return (
+    <div style={modalStyle} className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center border border-red-200">
+      <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Teacher</h2>
+      <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{teacher.name}</span>?</p>
+      <div className="flex gap-4">
+        <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
+        <button onClick={onConfirm} className="px-6 py-2 rounded-xl border border-red-500 bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
+      </div>
     </div>
   );
 }
@@ -60,6 +273,15 @@ export default function AdminDashboard() {
   const [courseCompletionData, setCourseCompletionData] = useState([]);
   const [loadingCompletion, setLoadingCompletion] = useState(false);
   const [showLecturesByTeacher, setShowLecturesByTeacher] = useState(false);
+  const [showAddTeacher, setShowAddTeacher] = useState(false);
+  const [teachers, setTeachers] = useState([]);
+  const [editTeacher, setEditTeacher] = useState(null);
+  const [editOverlayStyle, setEditOverlayStyle] = useState(null);
+  const [deleteTeacher, setDeleteTeacher] = useState(null);
+  const teachersTableRef = useRef(null);
+  const containerRef = useRef(null);
+  const diaryLogRowRefs = useRef([]);
+  const teachersHeadingRef = useRef(null);
 
   useEffect(() => {
     fetch('http://localhost:5000/api/diary-entries')
@@ -68,7 +290,14 @@ export default function AdminDashboard() {
     fetch('http://localhost:5000/api/time-off')
       .then(res => res.json())
       .then(data => setTimeOff(Array.isArray(data) ? data : []));
+    fetchTeachers();
   }, []);
+
+  const fetchTeachers = async () => {
+    const res = await fetch('http://localhost:5000/api/teachers');
+    const data = await res.json();
+    setTeachers(Array.isArray(data) ? data : []);
+  };
 
   const totalLectures = entries.length;
   const totalTimeOff = timeOff.reduce((sum, t) => sum + Number(t.days), 0);
@@ -268,15 +497,83 @@ export default function AdminDashboard() {
     hours: stats.hours
   }));
 
+  const handleAddTeacher = async (form) => {
+    try {
+      const res = await fetch('http://localhost:5000/api/add-teacher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Teacher added successfully!');
+        setShowAddTeacher(false);
+        fetchTeachers(); // Refresh teachers list
+      } else {
+        alert(data.message || 'Failed to add teacher');
+      }
+    } catch (err) {
+      alert('Server error');
+    }
+  };
+
+  const handleEditTeacher = async (form) => {
+    const res = await fetch(`http://localhost:5000/api/teacher/${form.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Teacher updated successfully!');
+      setEditTeacher(null);
+      fetchTeachers();
+    } else {
+      alert(data.message || 'Failed to update teacher');
+    }
+  };
+
+  const handleDeleteTeacher = async (id) => {
+    const res = await fetch(`http://localhost:5000/api/teacher/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      alert('Teacher deleted successfully!');
+      setDeleteTeacher(null);
+      fetchTeachers();
+    } else {
+      alert(data.message || 'Failed to delete teacher');
+    }
+  };
+
+  const handleToggleActive = async (teacher) => {
+    const res = await fetch(`http://localhost:5000/api/teacher/${teacher.id}/active`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: teacher.active ? 0 : 1 }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      fetchTeachers();
+    } else {
+      alert(data.message || 'Failed to update status');
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200 py-10">
-      <div className="backdrop-blur-2xl bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-screen-xl flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
+      <div ref={containerRef} className="backdrop-blur-2xl bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-screen-xl flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
         {userName && (
           <div className="w-full flex justify-start items-center mb-2">
             <span className="text-lg font-semibold text-blue-800">Welcome, {userName}!</span>
           </div>
         )}
-        <div className="w-full flex justify-end items-center mb-4">
+        <div className="w-full flex justify-end items-center mb-4 gap-4">
+          <button
+            onClick={() => setShowAddTeacher(true)}
+            className="px-6 py-2 rounded-xl border border-white/30 bg-blue-600/80 text-white font-semibold shadow-lg backdrop-blur-xl hover:bg-blue-700/90 transition"
+            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
+            + Add Teacher
+          </button>
           <button
             onClick={handleLogout}
             className="px-6 py-2 rounded-xl border border-white/30 bg-white/30 text-blue-800 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/50 hover:text-blue-900 transition"
@@ -284,6 +581,9 @@ export default function AdminDashboard() {
             Logout
           </button>
         </div>
+        {showAddTeacher && (
+          <AddTeacherModal onClose={() => setShowAddTeacher(false)} onSubmit={handleAddTeacher} />
+        )}
         <h1 className="text-4xl font-extrabold text-blue-900 mb-10 text-center drop-shadow">Admin Dashboard</h1>
         <div className="flex flex-col sm:flex-row gap-6 w-full mb-10">
           <div onClick={handleTotalLecturesClick} style={{cursor:'pointer', flex:1}}>
@@ -578,7 +878,7 @@ export default function AdminDashboard() {
         <div className="w-full mb-10">
           <div className="bg-white/40 backdrop-blur-lg rounded-xl shadow p-6 mb-8 border border-white/30 mx-auto" style={{width: '80vw', maxWidth: '1600px'}}>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-              <h2 className="text-2xl font-bold text-blue-800">Diary Log Table</h2>
+              <h2 className="text-2xl font-bold text-blue-800">Teachers</h2>
               <div className="flex items-center gap-2">
                 <label className="font-semibold text-blue-700">Select Month:</label>
                 <select
@@ -592,8 +892,8 @@ export default function AdminDashboard() {
                 </select>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
+            <div className="overflow-x-auto diary-log-table">
+              <table ref={teachersTableRef} className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
                 <thead className="bg-blue-100">
                   <tr>
                     <th className="px-6 py-3 text-left font-semibold text-gray-700 uppercase">Date</th>
@@ -614,7 +914,11 @@ export default function AdminDashboard() {
                     <tr><td colSpan={11} className="text-center py-4 text-gray-400">No diary entries found.</td></tr>
                   ) : (
                     filteredDiaryEntries.map((e, idx) => (
-                      <tr key={e.id} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                      <tr
+                        key={e.id}
+                        className={idx % 2 === 0 ? 'bg-blue-50' : ''}
+                        ref={el => diaryLogRowRefs.current[idx] = el}
+                      >
                         <td className="px-6 py-3">{new Date(e.date).toLocaleDateString()}</td>
                         <td className="px-4 py-2">{e.teacher_name}</td>
                         <td className="px-4 py-2">{e.course_name}</td>
@@ -634,6 +938,58 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+        <div className="w-full mb-8">
+          <h2 ref={teachersHeadingRef} className="text-2xl font-bold text-blue-800 mb-4">Teachers</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
+              <thead className="bg-blue-100">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Email</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Mobile</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {teachers.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-4 text-gray-400">No teachers found.</td></tr>
+                ) : (
+                  teachers.map(t => (
+                    <tr key={t.id}>
+                      <td className="px-4 py-2">{t.name}</td>
+                      <td className="px-4 py-2">{t.email}</td>
+                      <td className="px-4 py-2">{t.mobile}</td>
+                      <td className="px-4 py-2 font-semibold {t.active ? 'text-green-700' : 'text-red-700'}">{t.active ? 'Active' : 'Inactive'}</td>
+                      <td className="px-4 py-2 flex gap-2">
+                        <button onClick={e => {
+                          if (e.target) {
+                            const rect = e.target.getBoundingClientRect();
+                            setEditOverlayStyle({
+                              left: rect.left + window.scrollX,
+                              top: window.scrollY + 8, // 8px below the last diary log row
+                              width: rect.right - rect.left,
+                            });
+                          }
+                          setEditTeacher(t);
+                        }} className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700">Edit</button>
+                        <button onClick={e => {
+                          if (e.target) {
+                            const rect = e.target.getBoundingClientRect();
+                            setDeleteTeacher(t);
+                          }
+                        }} className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700">Delete</button>
+                        <button onClick={() => handleToggleActive(t)} className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-yellow-500 text-white hover:bg-yellow-700' : 'bg-green-500 text-white hover:bg-green-700'}`}>{t.active ? 'Make Inactive' : 'Make Active'}</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {editTeacher && <EditTeacherModal teacher={editTeacher} onClose={() => { setEditTeacher(null); }} onSubmit={handleEditTeacher} tableRef={teachersTableRef} containerRef={containerRef} diaryLogRowRefs={diaryLogRowRefs} diaryLogRowCount={filteredDiaryEntries.length} />}
+        {deleteTeacher && <ConfirmDeleteModal teacher={deleteTeacher} onClose={() => { setDeleteTeacher(null); }} onConfirm={() => handleDeleteTeacher(deleteTeacher.id)} containerRef={containerRef} teachersHeadingRef={teachersHeadingRef} />}
       </div>
     </div>
   );
