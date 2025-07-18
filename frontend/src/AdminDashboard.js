@@ -230,6 +230,33 @@ function ConfirmDeleteModal({ teacher, onClose, onConfirm, containerRef, teacher
   );
 }
 
+// Add week calculation helper if not present
+function getWeekNumber(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+}
+
+// Helper: Get week of month (1-based)
+function getWeekOfMonth(date) {
+  const d = new Date(date);
+  const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
+  const dayOfWeek = firstDay.getDay(); // 0 (Sun) - 6 (Sat)
+  return Math.ceil((d.getDate() + dayOfWeek) / 7);
+}
+
+// Helper: Get number of weeks in a month
+function getWeeksInMonth(year, month) {
+  // month: 1-12
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const firstDayOfWeek = firstDay.getDay();
+  const daysInMonth = lastDay.getDate();
+  return Math.ceil((daysInMonth + firstDayOfWeek) / 7);
+}
+
 export default function AdminDashboard() {
   const [entries, setEntries] = useState([]);
   const [timeOff, setTimeOff] = useState([]);
@@ -246,28 +273,60 @@ export default function AdminDashboard() {
   });
   const [selectedTeacher, setSelectedTeacher] = useState(null); // NEW
   // Diary Log Table month filter state
-  const [selectedDiaryMonth, setSelectedDiaryMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-  // Month options for 2025 and 2026
-  const diaryYears = [2025];
-  const diaryMonthOptions = diaryYears.flatMap(year =>
-    Array.from({ length: 12 }, (_, i) => {
-      const month = String(i + 1).padStart(2, '0');
-      return {
-        value: `${year}-${month}`,
-        label: `${new Date(`${year}-${month}-01`).toLocaleString('default', { month: 'long' })} ${year}`
-      };
-    })
-  );
-  // Filter entries for selected month
+  // Year, Month, and Week dropdowns for diary log
+  const diaryYears = [2025, 2026];
+  const [selectedDiaryYear, setSelectedDiaryYear] = useState(diaryYears[0]);
+  const [selectedDiaryMonth, setSelectedDiaryMonth] = useState('all');
+  const [selectedDiaryWeek, setSelectedDiaryWeek] = useState('all');
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const diaryMonthDropdownOptions = [
+    { value: 'all', label: 'All Months' },
+    ...monthNames.map((name, i) => ({ value: (i + 1).toString(), label: name }))
+  ];
+
+  // Week dropdown: number of weeks in selected month/year
+  let weeksInSelectedMonth = 5;
+  if (selectedDiaryYear !== 'all' && selectedDiaryMonth !== 'all') {
+    weeksInSelectedMonth = getWeeksInMonth(Number(selectedDiaryYear), Number(selectedDiaryMonth));
+  }
+  const weekOptions = [
+    { value: 'all', label: 'All Weeks' },
+    ...Array.from({ length: weeksInSelectedMonth }, (_, i) => ({ value: (i + 1).toString(), label: `Week ${i + 1}` }))
+  ];
+
+  // Filtering logic for diary entries (week of month)
   const filteredDiaryEntries = entries.filter(e => {
     if (!e.date) return false;
     const d = new Date(e.date);
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return ym === selectedDiaryMonth;
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const weekOfMonth = getWeekOfMonth(d);
+    if (selectedDiaryYear !== 'all' && year !== Number(selectedDiaryYear)) return false;
+    if (selectedDiaryMonth !== 'all' && month !== Number(selectedDiaryMonth)) return false;
+    if (selectedDiaryWeek !== 'all' && weekOfMonth !== Number(selectedDiaryWeek)) return false;
+    return true;
   });
+
+  // Filter entries for selected week/year with debug logging
+  useEffect(() => {
+    // Debug: log all entry weeks/years
+    if (entries && entries.length > 0) {
+      console.log('--- Diary Entry Weeks/Years ---');
+      entries.forEach(e => {
+        if (e.date) {
+          const d = new Date(e.date);
+          const week = getWeekNumber(d);
+          const year = d.getFullYear();
+          console.log(`Entry:`, e, 'Year:', year, 'Week:', week);
+        }
+      });
+      console.log('Selected Year:', selectedDiaryYear, 'Selected Week:', selectedDiaryWeek);
+    }
+  }, [entries, selectedDiaryYear, selectedDiaryWeek]);
 
   const [showCourseCompletion, setShowCourseCompletion] = useState(false);
   const [courseCompletionData, setCourseCompletionData] = useState([]);
@@ -276,7 +335,6 @@ export default function AdminDashboard() {
   const [showAddTeacher, setShowAddTeacher] = useState(false);
   const [teachers, setTeachers] = useState([]);
   const [editTeacher, setEditTeacher] = useState(null);
-  const [editOverlayStyle, setEditOverlayStyle] = useState(null);
   const [deleteTeacher, setDeleteTeacher] = useState(null);
   const teachersTableRef = useRef(null);
   const containerRef = useRef(null);
@@ -568,6 +626,12 @@ export default function AdminDashboard() {
           </div>
         )}
         <div className="w-full flex justify-end items-center mb-4 gap-4">
+          <button
+            onClick={() => navigate('/admin-management')}
+            className="px-6 py-2 rounded-xl border border-white/30 bg-purple-600/80 text-white font-semibold shadow-lg backdrop-blur-xl hover:bg-purple-700/90 transition"
+            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
+            Admin Management Panel
+          </button>
           <button
             onClick={() => setShowAddTeacher(true)}
             className="px-6 py-2 rounded-xl border border-white/30 bg-blue-600/80 text-white font-semibold shadow-lg backdrop-blur-xl hover:bg-blue-700/90 transition"
@@ -880,14 +944,34 @@ export default function AdminDashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
               <h2 className="text-2xl font-bold text-blue-800">Teachers</h2>
               <div className="flex items-center gap-2">
-                <label className="font-semibold text-blue-700">Select Month:</label>
+                <label className="font-semibold text-blue-700">Select Year:</label>
+                <select
+                  value={selectedDiaryYear}
+                  onChange={e => setSelectedDiaryYear(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  {diaryYears.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <label className="font-semibold text-blue-700 ml-4">Select Month:</label>
                 <select
                   value={selectedDiaryMonth}
                   onChange={e => setSelectedDiaryMonth(e.target.value)}
                   className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  {diaryMonthOptions.map(m => (
+                  {diaryMonthDropdownOptions.map(m => (
                     <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                <label className="font-semibold text-blue-700 ml-4">Select Week:</label>
+                <select
+                  value={selectedDiaryWeek}
+                  onChange={e => setSelectedDiaryWeek(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  {weekOptions.map(w => (
+                    <option key={w.value} value={w.value}>{w.label}</option>
                   ))}
                 </select>
               </div>
@@ -964,18 +1048,13 @@ export default function AdminDashboard() {
                       <td className="px-4 py-2 flex gap-2">
                         <button onClick={e => {
                           if (e.target) {
-                            const rect = e.target.getBoundingClientRect();
-                            setEditOverlayStyle({
-                              left: rect.left + window.scrollX,
-                              top: window.scrollY + 8, // 8px below the last diary log row
-                              width: rect.right - rect.left,
-                            });
+                            
+                            setEditTeacher(t);
                           }
-                          setEditTeacher(t);
                         }} className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700">Edit</button>
                         <button onClick={e => {
                           if (e.target) {
-                            const rect = e.target.getBoundingClientRect();
+                            
                             setDeleteTeacher(t);
                           }
                         }} className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700">Delete</button>

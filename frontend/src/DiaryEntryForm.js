@@ -29,10 +29,29 @@ export default function DiaryEntryForm({ userId }) {
   };
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/courses')
-      .then(res => res.json())
-      .then(data => setCourses(data))
-      .catch(() => setCourses([]));
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && user.role === 'teacher') {
+      fetch(`http://localhost:5000/api/teacher-courses?teacher_id=${user.id}`)
+        .then(res => res.json())
+        .then(ids => {
+          if (Array.isArray(ids) && ids.length > 0) {
+            fetch('http://localhost:5000/api/courses')
+              .then(res => res.json())
+              .then(allCourses => {
+                setCourses(allCourses.filter(c => ids.includes(c.id)));
+              });
+          } else {
+            setCourses([]);
+          }
+        })
+        .catch(() => setCourses([]));
+    } else {
+      // fallback for admin or if you want all courses
+      fetch('http://localhost:5000/api/courses')
+        .then(res => res.json())
+        .then(data => setCourses(Array.isArray(data) ? data : []))
+        .catch(() => setCourses([]));
+    }
   }, []);
 
   useEffect(() => {
@@ -167,7 +186,7 @@ export default function DiaryEntryForm({ userId }) {
                 className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.course ? 'ring-2 ring-red-400' : ''}`}
               >
                 <option value="">Select a course</option>
-                {courses.map(course => (
+                {(Array.isArray(courses) ? courses : []).map(course => (
                   <option key={course.id} value={course.id}>{course.name}</option>
                 ))}
               </select>

@@ -4,6 +4,7 @@ import Login from './Login';
 import DiaryEntryForm from './DiaryEntryForm';
 import TeacherDashboard from './TeacherDashboard';
 import AdminDashboard from './AdminDashboard';
+import AdminManagementPanel from './AdminManagementPanel';
 
 function App() {
   const [user, setUserState] = useState(() => {
@@ -51,6 +52,14 @@ function App() {
             // Replace this check with your actual admin authentication logic
             user && user.role === 'admin'
               ? <AdminDashboard />
+              : <Navigate to="/login" />
+          }
+        />
+        <Route
+          path="/admin-management"
+          element={
+            user && user.role === 'admin'
+              ? <AdminManagementPanel />
               : <Navigate to="/login" />
           }
         />
