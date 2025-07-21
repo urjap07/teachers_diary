@@ -25,6 +25,23 @@ router.get('/subjects', async (req, res) => {
   }
 });
 
+// Add a new subject
+router.post('/subjects', async (req, res) => {
+  const { name, course_id, semester } = req.body;
+  if (!name || !course_id || !semester) {
+    return res.status(400).json({ message: 'Name, course, and semester are required' });
+  }
+  try {
+    await db.query(
+      'INSERT INTO subjects (name, course_id, semester) VALUES (?, ?, ?)',
+      [name, course_id, semester]
+    );
+    res.json({ message: 'Subject added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // Get topics for a subject
 router.get('/topics', async (req, res) => {
   const { subject_id } = req.query;
@@ -52,6 +69,18 @@ router.put('/subjects/:id', async (req, res) => {
   try {
     await db.query('UPDATE subjects SET name=?, course_id=?, semester=? WHERE id=?', [name, course_id, semester, id]);
     res.json({ message: 'Subject updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete a subject by ID
+router.delete('/subjects/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: 'Subject ID is required' });
+  try {
+    await db.query('DELETE FROM subjects WHERE id = ?', [id]);
+    res.json({ message: 'Subject deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

@@ -293,14 +293,42 @@ function AddCourseModal({ onClose, onSubmit }) {
   );
 }
 
-function AssignCoursesModal({ teacher, allCourses, assignedCourseIds, onClose, onSubmit }) {
-  const [selected, setSelected] = useState([]); // Only new assignments
+function AssignCoursesModal({ teacher, onClose, onSubmit }) {
+  const [coursesWithSubjects, setCoursesWithSubjects] = useState([]);
+  const [selected, setSelected] = useState([]); // [{course_id, subject_id}]
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const handleToggle = (courseId) => {
-    setSelected(sel => sel.includes(courseId)
-      ? sel.filter(id => id !== courseId)
-      : [...sel, courseId]
+  // Fetch all courses and their subjects
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      // Fetch all courses
+      const coursesRes = await fetch('http://localhost:5000/api/courses');
+      const courses = await coursesRes.json();
+      // For each course, fetch its subjects
+      const coursesWithSubs = await Promise.all(courses.map(async (course) => {
+        const subsRes = await fetch(`http://localhost:5000/api/subjects?course_id=${course.id}`);
+        const subjects = await subsRes.json();
+        return { ...course, subjects };
+      }));
+      setCoursesWithSubjects(coursesWithSubs);
+      // Fetch assigned subjects for this teacher
+      const assignedRes = await fetch(`http://localhost:5000/api/teacher-subjects?teacher_id=${teacher.id}`);
+      const assignedList = await assignedRes.json();
+      setSelected(assignedList.map(a => ({ course_id: a.course_id, subject_id: a.subject_id })));
+      setLoading(false);
+    }
+    fetchData();
+  }, [teacher.id]);
+
+  const isChecked = (course_id, subject_id) => selected.some(sel => sel.course_id === course_id && sel.subject_id === subject_id);
+
+  const handleToggle = (course_id, subject_id) => {
+    setSelected(sel =>
+      isChecked(course_id, subject_id)
+        ? sel.filter(s => !(s.course_id === course_id && s.subject_id === subject_id))
+        : [...sel, { course_id, subject_id }]
     );
   };
 
@@ -313,7 +341,7 @@ function AssignCoursesModal({ teacher, allCourses, assignedCourseIds, onClose, o
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-2xl w-full relative flex flex-col justify-center items-center">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
           onClick={onClose}
@@ -321,34 +349,60 @@ function AssignCoursesModal({ teacher, allCourses, assignedCourseIds, onClose, o
         >
           &times;
         </button>
-        <h2 className="text-2xl font-bold text-blue-800 mb-6">Assign Courses to {teacher.name}</h2>
-        <form onSubmit={handleSubmit} className="w-full">
-          <div className="mb-6 max-h-64 overflow-y-auto">
-            {allCourses.length === 0 ? (
-              <p className="text-gray-500">No courses available.</p>
-            ) : (
-              allCourses.map(course => {
-                const isAssigned = (assignedCourseIds || []).includes(course.id);
-                return (
-                  <label key={course.id} className="flex items-center gap-2 mb-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isAssigned || selected.includes(course.id)}
-                      disabled={isAssigned}
-                      onChange={() => {
-                        if (!isAssigned) handleToggle(course.id);
-                      }}
-                    />
-                    <span className={`font-semibold ${isAssigned ? 'text-gray-400' : 'text-blue-900'}`}>{course.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">{course.code}</span>
-                    {isAssigned && <span className="ml-2 text-xs text-green-600">(Already assigned)</span>}
-                  </label>
-                );
-              })
-            )}
-          </div>
-          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition" disabled={saving}>{saving ? 'Saving...' : 'Assign Courses'}</button>
-        </form>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Assign Subjects to {teacher.name}</h2>
+        {loading ? (
+          <div className="text-blue-700 font-semibold py-8">Loading...</div>
+        ) : (
+          <form onSubmit={handleSubmit} className="w-full">
+            <div className="mb-6 max-h-[60vh] overflow-y-auto space-y-6">
+              {coursesWithSubjects.length === 0 ? (
+                <p className="text-gray-500">No courses available.</p>
+              ) : (
+                coursesWithSubjects.map(course => (
+                  <div key={course.id} className="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
+                    <div className="font-bold text-blue-900 text-lg mb-2 flex items-center gap-2">
+                      {course.name}
+                      <span className="text-xs text-gray-500 font-normal">{course.code}</span>
+                    </div>
+                    {course.subjects.length === 0 ? (
+                      <div className="text-gray-400 ml-4">No subjects</div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {course.subjects.map(subject => (
+                          <label
+                            key={subject.id}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition
+                              ${isChecked(course.id, subject.id)
+                                ? 'bg-blue-100 border border-blue-400'
+                                : 'bg-white border border-gray-200 hover:bg-blue-50'}
+                            `}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked(course.id, subject.id)}
+                              onChange={() => handleToggle(course.id, subject.id)}
+                              className="accent-blue-600"
+                            />
+                            <span className="font-medium text-blue-800">{subject.name}</span>
+                            <span className="text-xs text-gray-500 ml-1">(ID: {subject.id})</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+            <button
+              type="submit"
+              className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/90 text-white font-bold shadow-lg hover:bg-blue-700/90 transition mt-2"
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Assign Subjects'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -423,6 +477,71 @@ function EditSubjectModal({ subject, allCourses, onClose, onSubmit }) {
   );
 }
 
+function AddSubjectModal({ allCourses, onClose, onSubmit }) {
+  const [form, setForm] = useState({ name: '', course_id: '', semester: '' });
+  const [errors, setErrors] = useState({});
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    if (!form.course_id) errs.course_id = 'Course is required';
+    if (!form.semester) errs.semester = 'Semester is required';
+    return errs;
+  };
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Add Subject</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Course</label>
+            <select name="course_id" value={form.course_id} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+              <option value="">Select course</option>
+              {allCourses.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {errors.course_id && <p className="text-red-500 text-sm mt-1">{errors.course_id}</p>}
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Semester</label>
+            <select name="semester" value={form.semester} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+              <option value="">Select semester</option>
+              {[1,2,3,4,5,6].map(num => (
+                <option key={num} value={`Semester ${num}`}>{`Semester ${num}`}</option>
+              ))}
+            </select>
+            {errors.semester && <p className="text-red-500 text-sm mt-1">{errors.semester}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Subject</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminManagementPanel() {
   const [activeTab, setActiveTab] = useState('teachers');
   const [teachers, setTeachers] = useState([]);
@@ -441,8 +560,6 @@ export default function AdminManagementPanel() {
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [assignCoursesTeacher, setAssignCoursesTeacher] = useState(null);
   const [assignCoursesModalOpen, setAssignCoursesModalOpen] = useState(false);
-  const [assignCoursesAssigned, setAssignCoursesAssigned] = useState([]);
-  const [allCourses, setAllCourses] = useState([]);
   const [holidayTeacher, setHolidayTeacher] = useState(null);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [subjects, setSubjects] = useState([]);
@@ -451,6 +568,9 @@ export default function AdminManagementPanel() {
   const [selectedSubjectSemester, setSelectedSubjectSemester] = useState('');
   const [editSubject, setEditSubject] = useState(null);
   const [isEditingSubject, setIsEditingSubject] = useState(false);
+  const [showAddSubject, setShowAddSubject] = useState(false);
+  const [deleteSubject, setDeleteSubject] = useState(null);
+  const [isDeletingSubject, setIsDeletingSubject] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -665,42 +785,23 @@ export default function AdminManagementPanel() {
     }
   };
 
-  const openAssignCoursesModal = async (teacher) => {
+  const openAssignCoursesModal = (teacher) => {
     setAssignCoursesTeacher(teacher);
     setAssignCoursesModalOpen(true);
-    // Fetch all courses
-    const coursesRes = await fetch('http://localhost:5000/api/courses');
-    const courses = await coursesRes.json();
-    setAllCourses(Array.isArray(courses) ? courses : []);
-    // Fetch assigned courses
-    const assignedRes = await fetch(`http://localhost:5000/api/teacher-courses?teacher_id=${teacher.id}`);
-    const assigned = await assignedRes.json();
-    setAssignCoursesAssigned(Array.isArray(assigned) ? assigned : []);
   };
 
-  const handleAssignCourses = async (selectedCourseIds) => {
-    const res = await fetch('http://localhost:5000/api/teacher-courses/assign', {
+  const handleAssignCourses = async (selectedAssignments) => {
+    // selectedAssignments is an array of { course_id, subject_id }
+    await fetch('http://localhost:5000/api/teacher-subjects/assign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teacher_id: assignCoursesTeacher.id, course_ids: selectedCourseIds }),
+      body: JSON.stringify({
+        teacher_id: assignCoursesTeacher.id,
+        assignments: selectedAssignments
+      }),
     });
-    const data = await res.json();
-    if (res.ok) {
-      alert('Courses assigned successfully!');
-      setAssignCoursesModalOpen(false);
-      setAssignCoursesTeacher(null);
-      setAssignCoursesAssigned([]);
-      // Optionally refresh teachers list
-      fetch('http://localhost:5000/api/teachers')
-        .then(res => res.json())
-        .then(data => {
-          const arr = Array.isArray(data) ? data : [];
-          setTeachers(arr);
-          setFilteredTeachers(arr);
-        });
-    } else {
-      alert(data.message || 'Failed to assign courses');
-    }
+    setAssignCoursesModalOpen(false);
+    setAssignCoursesTeacher(null);
   };
 
   const handleEditSubject = async (form) => {
@@ -726,6 +827,54 @@ export default function AdminManagementPanel() {
     } else {
       alert(data.message || 'Failed to update subject');
     }
+  };
+
+  const handleAddSubject = async (form) => {
+    // POST to backend
+    const res = await fetch('http://localhost:5000/api/subjects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      setShowAddSubject(false);
+      // Refresh subjects list
+      let url = 'http://localhost:5000/api/subjects';
+      const params = [];
+      if (selectedSubjectCourse) params.push(`course_id=${selectedSubjectCourse}`);
+      if (selectedSubjectSemester) params.push(`semester=${encodeURIComponent(selectedSubjectSemester)}`);
+      if (params.length > 0) url += '?' + params.join('&');
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setSubjects(Array.isArray(data) ? data : []));
+    } else {
+      alert('Failed to add subject');
+    }
+  };
+
+  const handleDeleteSubject = (subject) => {
+    setDeleteSubject(subject);
+    setIsDeletingSubject(true);
+  };
+
+  const confirmDeleteSubject = async () => {
+    if (!deleteSubject) return;
+    const res = await fetch(`http://localhost:5000/api/subjects/${deleteSubject.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      // Refresh subjects list
+      let url = 'http://localhost:5000/api/subjects';
+      const params = [];
+      if (selectedSubjectCourse) params.push(`course_id=${selectedSubjectCourse}`);
+      if (selectedSubjectSemester) params.push(`semester=${encodeURIComponent(selectedSubjectSemester)}`);
+      if (params.length > 0) url += '?' + params.join('&');
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setSubjects(Array.isArray(data) ? data : []));
+    } else {
+      alert('Failed to delete subject');
+    }
+    setDeleteSubject(null);
+    setIsDeletingSubject(false);
   };
 
   return (
@@ -850,7 +999,7 @@ export default function AdminManagementPanel() {
           <section>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-blue-800">Manage Subjects</h2>
-              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition">+ Add Subject</button>
+              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddSubject(true)}>+ Add Subject</button>
             </div>
             <div className="flex gap-4 mb-6 items-center">
               <label className="font-semibold text-blue-700">Course:</label>
@@ -897,7 +1046,7 @@ export default function AdminManagementPanel() {
                         <td className="px-4 py-2">{s.semester}</td>
                         <td className="px-4 py-2 flex gap-2">
                           <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => { setEditSubject(s); setIsEditingSubject(true); }}>Edit</button>
-                          <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700">Delete</button>
+                          <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => handleDeleteSubject(s)}>Delete</button>
                         </td>
                       </tr>
                     ))
@@ -956,9 +1105,7 @@ export default function AdminManagementPanel() {
       {assignCoursesModalOpen && assignCoursesTeacher && (
         <AssignCoursesModal
           teacher={assignCoursesTeacher}
-          allCourses={allCourses}
-          assignedCourseIds={assignCoursesAssigned}
-          onClose={() => { setAssignCoursesModalOpen(false); setAssignCoursesTeacher(null); setAssignCoursesAssigned([]); }}
+          onClose={() => { setAssignCoursesModalOpen(false); setAssignCoursesTeacher(null); }}
           onSubmit={handleAssignCourses}
         />
       )}
@@ -986,6 +1133,20 @@ export default function AdminManagementPanel() {
           allCourses={subjectCourses}
           onClose={() => { setEditSubject(null); setIsEditingSubject(false); }}
           onSubmit={handleEditSubject}
+        />
+      )}
+      {showAddSubject && (
+        <AddSubjectModal
+          allCourses={subjectCourses}
+          onClose={() => setShowAddSubject(false)}
+          onSubmit={handleAddSubject}
+        />
+      )}
+      {isDeletingSubject && deleteSubject && (
+        <ConfirmDeleteModal
+          teacher={deleteSubject} // reuse modal, just pass subject object
+          onClose={() => { setDeleteSubject(null); setIsDeletingSubject(false); }}
+          onConfirm={confirmDeleteSubject}
         />
       )}
     </div>
