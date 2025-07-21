@@ -57,4 +57,40 @@ router.put('/subjects/:id', async (req, res) => {
   }
 });
 
+// Get all subjects assigned to a teacher
+router.get('/teacher-subjects', async (req, res) => {
+  const { teacher_id } = req.query;
+  if (!teacher_id) return res.status(400).json({ message: 'teacher_id is required' });
+  try {
+    const [rows] = await db.query('SELECT course_id, subject_id FROM teacher_subjects WHERE teacher_id = ?', [teacher_id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Assign subjects to a teacher (replace all assignments)
+router.post('/teacher-subjects/assign', async (req, res) => {
+  const { teacher_id, assignments } = req.body;
+  if (!teacher_id || !Array.isArray(assignments)) {
+    return res.status(400).json({ message: 'teacher_id and assignments are required' });
+  }
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    await conn.query('DELETE FROM teacher_subjects WHERE teacher_id = ?', [teacher_id]);
+    if (assignments.length > 0) {
+      const values = assignments.map(a => [teacher_id, a.course_id, a.subject_id]);
+      await conn.query('INSERT INTO teacher_subjects (teacher_id, course_id, subject_id) VALUES ?', [values]);
+    }
+    await conn.commit();
+    res.json({ message: 'Subjects assigned successfully' });
+  } catch (err) {
+    await conn.rollback();
+    res.status(500).json({ message: 'Server error', error: err.message });
+  } finally {
+    conn.release();
+  }
+});
+
 module.exports = router;

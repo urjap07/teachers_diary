@@ -241,6 +241,8 @@ function getWeekNumber(date) {
 
 // Helper: Get number of weeks in a month
 export default function AdminDashboard() {
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [entries, setEntries] = useState([]);
   const [timeOff, setTimeOff] = useState([]);
   const [expandedCourse, setExpandedCourse] = useState(null);
@@ -257,29 +259,12 @@ export default function AdminDashboard() {
   const [selectedTeacher, setSelectedTeacher] = useState(null); // NEW
   // Diary Log Table month filter state
   // Year, Month, and Week dropdowns for diary log
-  const diaryYears = [2025, 2026];
-  const [selectedDiaryYear, setSelectedDiaryYear] = useState(diaryYears[0]);
-  const [selectedDiaryMonth, setSelectedDiaryMonth] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Remove year, month, and week dropdowns for diary log
+  // Only keep startDate and endDate for filtering
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const diaryMonthDropdownOptions = [
-    { value: 'all', label: 'All Months' },
-    ...monthNames.map((name, i) => ({ value: (i + 1).toString(), label: name }))
-  ];
-
-  // Filtering logic for diary entries (week of month)
+  // Remove year/month filtering from filteredDiaryEntries
   const filteredDiaryEntries = entries.filter(e => {
     if (!e.date) return false;
-    const d = new Date(e.date);
-    const year = d.getFullYear();
-    const month = d.getMonth() + 1;
-    if (selectedDiaryYear !== 'all' && year !== Number(selectedDiaryYear)) return false;
-    if (selectedDiaryMonth !== 'all' && month !== Number(selectedDiaryMonth)) return false;
     if (startDate && new Date(e.date) < new Date(startDate)) return false;
     if (endDate && new Date(e.date) > new Date(endDate)) return false;
     return true;
@@ -298,9 +283,9 @@ export default function AdminDashboard() {
           console.log(`Entry:`, e, 'Year:', year, 'Week:', week);
         }
       });
-      console.log('Selected Year:', selectedDiaryYear, 'Selected Week:', 'all'); // Removed selectedDiaryWeek from log
+      console.log('Selected Year:', 'all', 'Selected Week:', 'all'); // Removed selectedDiaryWeek from log
     }
-  }, [entries, selectedDiaryYear]); // Removed selectedDiaryWeek from dependency array
+  }, [entries]); // Removed selectedDiaryWeek from dependency array
 
   const [showCourseCompletion, setShowCourseCompletion] = useState(false);
   const [courseCompletionData, setCourseCompletionData] = useState([]);
@@ -316,14 +301,21 @@ export default function AdminDashboard() {
   const teachersHeadingRef = useRef(null);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/diary-entries')
+    let url = 'http://localhost:5000/api/diary-entries';
+    const params = [];
+    if (startDate) params.push(`start_date=${startDate}`);
+    if (endDate) params.push(`end_date=${endDate}`);
+    if (params.length > 0) {
+      url += '?' + params.join('&');
+    }
+    fetch(url)
       .then(res => res.json())
       .then(data => setEntries(Array.isArray(data) ? data : []));
     fetch('http://localhost:5000/api/time-off')
       .then(res => res.json())
       .then(data => setTimeOff(Array.isArray(data) ? data : []));
     fetchTeachers();
-  }, []);
+  }, [startDate, endDate]);
 
   const fetchTeachers = async () => {
     const res = await fetch('http://localhost:5000/api/teachers');
@@ -918,26 +910,6 @@ export default function AdminDashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
               <h2 className="text-2xl font-bold text-blue-800">Teachers</h2>
               <div className="flex items-center gap-2">
-                <label className="font-semibold text-blue-700">Select Year:</label>
-                <select
-                  value={selectedDiaryYear}
-                  onChange={e => setSelectedDiaryYear(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  {diaryYears.map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <label className="font-semibold text-blue-700 ml-4">Select Month:</label>
-                <select
-                  value={selectedDiaryMonth}
-                  onChange={e => setSelectedDiaryMonth(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  {diaryMonthDropdownOptions.map(m => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
                 <label className="font-semibold text-blue-700 ml-4">Start Date:</label>
                 <input
                   type="date"

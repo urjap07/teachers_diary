@@ -47,36 +47,30 @@ router.post('/diary-entry', async (req, res) => {
   }
 });
 
-// Get diary entries for a specific teacher or all entries
+// Get diary entries for a specific teacher or all entries, with optional date range filtering
 router.get('/diary-entries', async (req, res) => {
-  const { user_id } = req.query;
+  const { user_id, start_date, end_date } = req.query;
   try {
-    let rows;
+    let query = `
+      SELECT de.id, de.user_id, de.course_id, de.lecture_number, de.start_time, de.end_time, de.date, de.subject, de.topic_covered, de.remarks, de.semester, de.created_at,
+             c.name AS course_name,
+             u.name AS teacher_name
+      FROM diary_entries de
+      LEFT JOIN courses c ON de.course_id = c.id
+      LEFT JOIN users u ON de.user_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
     if (user_id) {
-      // If user_id is provided, filter by user and join courses and users for course_name and teacher_name
-      [rows] = await db.query(
-        `SELECT de.id, de.user_id, de.course_id, de.lecture_number, de.start_time, de.end_time, de.date, de.subject, de.topic_covered, de.remarks, de.semester, de.created_at,
-                c.name AS course_name,
-                u.name AS teacher_name
-         FROM diary_entries de
-         LEFT JOIN courses c ON de.course_id = c.id
-         LEFT JOIN users u ON de.user_id = u.id
-         WHERE de.user_id = ?
-         ORDER BY de.date DESC, de.start_time DESC`,
-        [user_id]
-      );
-    } else {
-      // If no user_id, return all entries with course_name and teacher_name
-      [rows] = await db.query(
-        `SELECT de.id, de.user_id, de.course_id, de.lecture_number, de.start_time, de.end_time, de.date, de.subject, de.topic_covered, de.remarks, de.semester, de.created_at,
-                c.name AS course_name,
-                u.name AS teacher_name
-         FROM diary_entries de
-         LEFT JOIN courses c ON de.course_id = c.id
-         LEFT JOIN users u ON de.user_id = u.id
-         ORDER BY de.date DESC, de.start_time DESC`
-      );
+      query += ' AND de.user_id = ?';
+      params.push(user_id);
     }
+    if (start_date && end_date) {
+      query += ' AND de.date BETWEEN ? AND ?';
+      params.push(start_date, end_date);
+    }
+    query += ' ORDER BY de.date DESC, de.start_time DESC';
+    const [rows] = await db.query(query, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
