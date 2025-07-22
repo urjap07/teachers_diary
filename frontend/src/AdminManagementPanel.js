@@ -542,6 +542,121 @@ function AddSubjectModal({ allCourses, onClose, onSubmit }) {
   );
 }
 
+// Add Topic Modal
+function AddTopicModal({ subjects, onClose, onSubmit }) {
+  const [form, setForm] = React.useState({ name: '', subject_id: '' });
+  const [errors, setErrors] = React.useState({});
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    if (!form.subject_id) errs.subject_id = 'Subject is required';
+    return errs;
+  };
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Add Topic</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Subject</label>
+            <select name="subject_id" value={form.subject_id} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+              <option value="">Select subject</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            {errors.subject_id && <p className="text-red-500 text-sm mt-1">{errors.subject_id}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Topic</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Edit Topic Modal
+function EditTopicModal({ topic, subjects, onClose, onSubmit }) {
+  const [form, setForm] = React.useState({ ...topic });
+  const [errors, setErrors] = React.useState({});
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    if (!form.subject_id) errs.subject_id = 'Subject is required';
+    return errs;
+  };
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Edit Topic</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Subject</label>
+            <select name="subject_id" value={form.subject_id} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
+              <option value="">Select subject</option>
+              {subjects.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            {errors.subject_id && <p className="text-red-500 text-sm mt-1">{errors.subject_id}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Update Topic</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Confirm Delete Topic Modal
+function ConfirmDeleteTopicModal({ topic, onClose, onConfirm }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Topic</h2>
+        <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{topic.name}</span>?</p>
+        <div className="flex gap-4">
+          <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
+          <button onClick={onConfirm} className="px-6 py-2 rounded-xl border border-red-500 bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminManagementPanel() {
   const [activeTab, setActiveTab] = useState('teachers');
   const [teachers, setTeachers] = useState([]);
@@ -571,6 +686,16 @@ export default function AdminManagementPanel() {
   const [showAddSubject, setShowAddSubject] = useState(false);
   const [deleteSubject, setDeleteSubject] = useState(null);
   const [isDeletingSubject, setIsDeletingSubject] = useState(false);
+  const [topics, setTopics] = useState([]);
+  const [topicCourses, setTopicCourses] = useState([]);
+  const [topicSubjects, setTopicSubjects] = useState([]);
+  const [selectedTopicCourse, setSelectedTopicCourse] = useState('');
+  const [selectedTopicSubject, setSelectedTopicSubject] = useState('');
+  const [showAddTopic, setShowAddTopic] = useState(false);
+  const [editTopic, setEditTopic] = useState(null);
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+  const [deleteTopic, setDeleteTopic] = useState(null);
+  const [isDeletingTopic, setIsDeletingTopic] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -607,7 +732,71 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setSubjects(Array.isArray(data) ? data : []));
     }
-  }, [activeTab, selectedSubjectCourse, selectedSubjectSemester]);
+    if (activeTab === 'topics') {
+      fetch('http://localhost:5000/api/courses')
+        .then(res => res.json())
+        .then(data => setTopicCourses(Array.isArray(data) ? data : []));
+      // Fetch subjects for dropdown based on selected course
+      if (selectedTopicCourse) {
+        fetch(`http://localhost:5000/api/subjects?course_id=${selectedTopicCourse}`)
+          .then(res => res.json())
+          .then(data => setTopicSubjects(Array.isArray(data) ? data : []));
+      } else {
+        fetch('http://localhost:5000/api/subjects')
+          .then(res => res.json())
+          .then(data => setTopicSubjects(Array.isArray(data) ? data : []));
+      }
+      // Fetch topics
+      if (selectedTopicSubject) {
+        // Find the subject info for the selected subject
+        fetch(`http://localhost:5000/api/subjects`)
+          .then(res => res.json())
+          .then(async allSubjects => {
+            const subject = allSubjects.find(s => s.id === Number(selectedTopicSubject));
+            if (!subject) {
+              setTopics([]);
+              return;
+            }
+            // Fetch topics for this subject and join with subject, course, and semester info
+            const res = await fetch(`http://localhost:5000/api/topics?subject_id=${selectedTopicSubject}`);
+            const topics = await res.json();
+            setTopics(topics.map(t => ({
+              ...t,
+              subject_id: subject.id,
+              subject_name: subject.name,
+              course_id: subject.course_id,
+              semester: subject.semester
+            })));
+          });
+      } else {
+        // Fetch all topics for all subjects, and join with subject, course, and semester info
+        const fetchSubjects = selectedTopicCourse
+          ? fetch(`http://localhost:5000/api/subjects?course_id=${selectedTopicCourse}`)
+          : fetch('http://localhost:5000/api/subjects');
+        fetchSubjects
+          .then(res => res.json())
+          .then(async subjects => {
+            if (!Array.isArray(subjects) || subjects.length === 0) {
+              setTopics([]);
+              return;
+            }
+            // Fetch topics for each subject and flatten, joining with subject, course, and semester
+            const allTopics = (await Promise.all(subjects.map(async s => {
+              const res = await fetch(`http://localhost:5000/api/topics?subject_id=${s.id}`);
+              const topics = await res.json();
+              return topics.map(t => ({
+                ...t,
+                subject_id: s.id,
+                subject_name: s.name,
+                course_id: s.course_id,
+                semester: s.semester
+              }));
+            }))).flat();
+            setTopics(allTopics);
+          });
+      }
+    }
+  }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject]);
 
   // Filter teachers as the user types
   useEffect(() => {
@@ -877,6 +1066,61 @@ export default function AdminManagementPanel() {
     setIsDeletingSubject(false);
   };
 
+  const handleAddTopic = async (form) => {
+    const res = await fetch('http://localhost:5000/api/topics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      setShowAddTopic(false);
+      if (selectedTopicSubject) {
+        fetch(`http://localhost:5000/api/topics?subject_id=${selectedTopicSubject}`)
+          .then(res => res.json())
+          .then(data => setTopics(Array.isArray(data) ? data : []));
+      }
+    } else {
+      alert('Failed to add topic');
+    }
+  };
+  const handleEditTopic = async (form) => {
+    const res = await fetch(`http://localhost:5000/api/topics/${form.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      setEditTopic(null);
+      setIsEditingTopic(false);
+      if (selectedTopicSubject) {
+        fetch(`http://localhost:5000/api/topics?subject_id=${selectedTopicSubject}`)
+          .then(res => res.json())
+          .then(data => setTopics(Array.isArray(data) ? data : []));
+      }
+    } else {
+      alert('Failed to update topic');
+    }
+  };
+  const handleDeleteTopic = (topic) => {
+    setDeleteTopic(topic);
+    setIsDeletingTopic(true);
+  };
+  const confirmDeleteTopic = async () => {
+    if (!deleteTopic) return;
+    const res = await fetch(`http://localhost:5000/api/topics/${deleteTopic.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      if (selectedTopicSubject) {
+        fetch(`http://localhost:5000/api/topics?subject_id=${selectedTopicSubject}`)
+          .then(res => res.json())
+          .then(data => setTopics(Array.isArray(data) ? data : []));
+      }
+    } else {
+      alert('Failed to delete topic');
+    }
+    setDeleteTopic(null);
+    setIsDeletingTopic(false);
+  };
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       {/* Sidebar */}
@@ -1060,10 +1304,62 @@ export default function AdminManagementPanel() {
           <section>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-blue-800">Manage Topics</h2>
-              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition">+ Add Topic</button>
+              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddTopic(true)}>+ Add Topic</button>
             </div>
-            <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200">
-              <p className="text-gray-500">[Topics table will go here]</p>
+            <div className="flex gap-4 mb-6 items-center">
+              <label className="font-semibold text-blue-700">Course:</label>
+              <select
+                value={selectedTopicCourse}
+                onChange={e => { setSelectedTopicCourse(e.target.value); setSelectedTopicSubject(''); }}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">All Courses</option>
+                {topicCourses.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <label className="font-semibold text-blue-700 ml-4">Subject:</label>
+              <select
+                value={selectedTopicSubject}
+                onChange={e => setSelectedTopicSubject(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">All Subjects</option>
+                {topicSubjects.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200 overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Subject</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Course</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Semester</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {topics.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-4 text-gray-400">No topics found.</td></tr>
+                  ) : (
+                    topics.map(t => (
+                      <tr key={t.id}>
+                        <td className="px-4 py-2">{t.name}</td>
+                        <td className="px-4 py-2">{t.subject_name || topicSubjects.find(s => s.id === t.subject_id)?.name || '-'}</td>
+                        <td className="px-4 py-2">{topicCourses.find(c => c.id === t.course_id)?.name || '-'}</td>
+                        <td className="px-4 py-2">{t.semester || '-'}</td>
+                        <td className="px-4 py-2 flex gap-2">
+                          <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => { setEditTopic(t); setIsEditingTopic(true); }}>Edit</button>
+                          <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => handleDeleteTopic(t)}>Delete</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
         )}
@@ -1148,6 +1444,15 @@ export default function AdminManagementPanel() {
           onClose={() => { setDeleteSubject(null); setIsDeletingSubject(false); }}
           onConfirm={confirmDeleteSubject}
         />
+      )}
+      {showAddTopic && (
+        <AddTopicModal subjects={topicSubjects} onClose={() => setShowAddTopic(false)} onSubmit={handleAddTopic} />
+      )}
+      {isEditingTopic && editTopic && (
+        <EditTopicModal topic={editTopic} subjects={topicSubjects} onClose={() => { setEditTopic(null); setIsEditingTopic(false); }} onSubmit={handleEditTopic} />
+      )}
+      {isDeletingTopic && deleteTopic && (
+        <ConfirmDeleteTopicModal topic={deleteTopic} onClose={() => { setDeleteTopic(null); setIsDeletingTopic(false); }} onConfirm={confirmDeleteTopic} />
       )}
     </div>
   );

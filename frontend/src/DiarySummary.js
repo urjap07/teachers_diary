@@ -28,25 +28,6 @@ function StatCard({ title, value, onClick, active, tooltip }) {
   );
 }
 
-// Helper to get month and date range string
-function getMonthAndDateRange(entries) {
-  // Only consider entries in 2025 and 2026
-  const filtered = entries.filter(e => {
-    const year = new Date(e.date).getFullYear();
-    return year === 2025 || year === 2026;
-  });
-  if (filtered.length === 0) return 'No data for 2025 or 2026';
-  // Get min and max date
-  const dates = filtered.map(e => new Date(e.date));
-  const minDate = new Date(Math.min(...dates));
-  const maxDate = new Date(Math.max(...dates));
-  // Get month string for minDate
-  const month = minDate.toLocaleString('default', { month: 'long', year: 'numeric' });
-  // Format date range
-  const range = `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`;
-  return `Month: ${month} | Date Range: ${range}`;
-}
-
 // Month options for 2025 and 2026
 const diaryYears = [2025, 2026];
 const diaryMonthOptions = diaryYears.flatMap(year =>

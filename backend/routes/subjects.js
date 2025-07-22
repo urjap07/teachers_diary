@@ -59,6 +59,23 @@ router.get('/topics', async (req, res) => {
   }
 });
 
+// Add a new topic
+router.post('/topics', async (req, res) => {
+  const { name, subject_id } = req.body;
+  if (!name || !subject_id) {
+    return res.status(400).json({ message: 'Name and subject_id are required' });
+  }
+  try {
+    await db.query(
+      'INSERT INTO topics (name, subject_id) VALUES (?, ?)',
+      [name, subject_id]
+    );
+    res.json({ message: 'Topic added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // Update a subject
 router.put('/subjects/:id', async (req, res) => {
   const { id } = req.params;
@@ -74,6 +91,21 @@ router.put('/subjects/:id', async (req, res) => {
   }
 });
 
+// Update a topic
+router.put('/topics/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, subject_id } = req.body;
+  if (!name || !subject_id) {
+    return res.status(400).json({ message: 'Name and subject_id are required' });
+  }
+  try {
+    await db.query('UPDATE topics SET name=?, subject_id=? WHERE id=?', [name, subject_id, id]);
+    res.json({ message: 'Topic updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // Delete a subject by ID
 router.delete('/subjects/:id', async (req, res) => {
   const { id } = req.params;
@@ -81,6 +113,18 @@ router.delete('/subjects/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM subjects WHERE id = ?', [id]);
     res.json({ message: 'Subject deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete a topic by ID
+router.delete('/topics/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: 'Topic ID is required' });
+  try {
+    await db.query('DELETE FROM topics WHERE id = ?', [id]);
+    res.json({ message: 'Topic deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
