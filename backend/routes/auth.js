@@ -19,6 +19,10 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const user = users[0];
+    // Check if user is active
+    if (user.active !== 1) {
+      return res.status(403).json({ message: 'Account is inactive. Please contact admin.' });
+    }
     // Plain text password comparison (not secure)
     if (password !== user.password_hash) {
       return res.status(401).json({ message: 'Invalid credentials' });

@@ -5,6 +5,7 @@ export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
+  const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -24,6 +25,7 @@ export default function Login({ onLoginSuccess }) {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
+    setLoginError("");
     if (Object.keys(errs).length === 0) {
       try {
         const res = await fetch('http://localhost:5000/api/login', {
@@ -42,10 +44,10 @@ export default function Login({ onLoginSuccess }) {
             navigate('/diary-entry');
           }
         } else {
-          alert(data.message || 'Login failed');
+          setLoginError(data.message || 'Login failed');
         }
       } catch (err) {
-        alert('Server error');
+        setLoginError('Server error');
       }
     }
   };
@@ -54,6 +56,11 @@ export default function Login({ onLoginSuccess }) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-md flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
         <h1 className="text-4xl font-extrabold text-blue-900 mb-8 text-center drop-shadow">Login</h1>
+        {loginError && (
+          <div className="w-full mb-6 bg-red-500/90 text-white text-center px-4 py-3 rounded-lg shadow font-semibold animate-fade-in">
+            {loginError}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="w-full">
           <div className="mb-6">
             <label className="block text-gray-800 mb-2 font-semibold">Email or Mobile</label>

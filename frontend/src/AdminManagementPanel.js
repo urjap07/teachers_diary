@@ -6,6 +6,7 @@ const TABS = [
   { key: 'courses', label: 'Courses' },
   { key: 'subjects', label: 'Subjects' },
   { key: 'topics', label: 'Topics' },
+  { key: 'holidays', label: 'Holidays' }, // New Holidays tab
 ];
 
 function EditTeacherModal({ teacher, onClose, onSubmit }) {
@@ -569,11 +570,6 @@ function AddTopicModal({ subjects, onClose, onSubmit }) {
         <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
         <h2 className="text-2xl font-bold text-blue-800 mb-6">Add Topic</h2>
         <form onSubmit={handleSubmit} className="w-full">
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
-            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
-            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-          </div>
           <div className="mb-6">
             <label className="block text-gray-800 mb-2 font-semibold">Subject</label>
             <select name="subject_id" value={form.subject_id} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
@@ -583,6 +579,11 @@ function AddTopicModal({ subjects, onClose, onSubmit }) {
               ))}
             </select>
             {errors.subject_id && <p className="text-red-500 text-sm mt-1">{errors.subject_id}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
           <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Topic</button>
         </form>
@@ -618,11 +619,6 @@ function EditTopicModal({ topic, subjects, onClose, onSubmit }) {
         <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
         <h2 className="text-2xl font-bold text-blue-800 mb-6">Edit Topic</h2>
         <form onSubmit={handleSubmit} className="w-full">
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
-            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
-            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-          </div>
           <div className="mb-6">
             <label className="block text-gray-800 mb-2 font-semibold">Subject</label>
             <select name="subject_id" value={form.subject_id} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner">
@@ -632,6 +628,11 @@ function EditTopicModal({ topic, subjects, onClose, onSubmit }) {
               ))}
             </select>
             {errors.subject_id && <p className="text-red-500 text-sm mt-1">{errors.subject_id}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
           <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Update Topic</button>
         </form>
@@ -648,6 +649,190 @@ function ConfirmDeleteTopicModal({ topic, onClose, onConfirm }) {
         <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
         <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Topic</h2>
         <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{topic.name}</span>?</p>
+        <div className="flex gap-4">
+          <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
+          <button onClick={onConfirm} className="px-6 py-2 rounded-xl border border-red-500 bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Add subtopic modal component
+function SubtopicModal({ topic, onClose }) {
+  const [subtopics, setSubtopics] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [editSubtopic, setEditSubtopic] = React.useState(null);
+  const [form, setForm] = React.useState({ name: '', description: '', order: '' });
+  const [errors, setErrors] = React.useState({});
+  const [deleteSubtopic, setDeleteSubtopic] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!topic) return;
+    setLoading(true);
+    fetch(`http://localhost:5000/api/subtopics?topic_id=${topic.id}`)
+      .then(res => res.json())
+      .then(data => {
+        setSubtopics(Array.isArray(data) ? data : []);
+        setLoading(false);
+      });
+  }, [topic]);
+
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Name is required';
+    return errs;
+  };
+  const handleAdd = async e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    const res = await fetch('http://localhost:5000/api/subtopics', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: form.name,
+        topic_id: topic.id,
+        description: form.description,
+        order: form.order || null
+      })
+    });
+    if (res.ok) {
+      setForm({ name: '', description: '', order: '' });
+      setShowAdd(false);
+      fetch(`http://localhost:5000/api/subtopics?topic_id=${topic.id}`)
+        .then(res => res.json())
+        .then(data => setSubtopics(Array.isArray(data) ? data : []));
+      alert('Subtopic added successfully!');
+    } else {
+      alert('Failed to add subtopic');
+    }
+  };
+  const handleEdit = sub => {
+    setEditSubtopic(sub);
+    setForm({ name: sub.name, description: sub.description, order: sub.order || '' });
+    setShowAdd(false);
+  };
+  const handleUpdate = async e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+    const res = await fetch(`http://localhost:5000/api/subtopics/${editSubtopic.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: form.name,
+        topic_id: topic.id,
+        description: form.description,
+        order: form.order || null
+      })
+    });
+    if (res.ok) {
+      setEditSubtopic(null);
+      setForm({ name: '', description: '', order: '' });
+      fetch(`http://localhost:5000/api/subtopics?topic_id=${topic.id}`)
+        .then(res => res.json())
+        .then(data => setSubtopics(Array.isArray(data) ? data : []));
+      alert('Subtopic updated successfully!');
+    } else {
+      alert('Failed to update subtopic');
+    }
+  };
+  const handleDelete = sub => {
+    setDeleteSubtopic(sub);
+  };
+  const confirmDelete = async () => {
+    if (!deleteSubtopic) return;
+    const res = await fetch(`http://localhost:5000/api/subtopics/${deleteSubtopic.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      fetch(`http://localhost:5000/api/subtopics?topic_id=${topic.id}`)
+        .then(res => res.json())
+        .then(data => setSubtopics(Array.isArray(data) ? data : []));
+      alert('Subtopic deleted successfully!');
+    } else {
+      alert('Failed to delete subtopic');
+    }
+    setDeleteSubtopic(null);
+  };
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-2xl w-full relative flex flex-col justify-center items-center">
+        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Subtopics for: {topic.name}</h2>
+        {loading ? <div className="text-blue-700 font-semibold py-8">Loading...</div> : (
+          <>
+            <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base mb-6">
+              <thead className="bg-blue-100">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Description</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Order</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {subtopics.length === 0 ? (
+                  <tr><td colSpan={4} className="text-center py-4 text-gray-400">No subtopics found.</td></tr>
+                ) : (
+                  subtopics.map(sub => (
+                    <tr key={sub.id}>
+                      <td className="px-4 py-2">{sub.name}</td>
+                      <td className="px-4 py-2">{sub.description}</td>
+                      <td className="px-4 py-2">{sub.order || '-'}</td>
+                      <td className="px-4 py-2 flex gap-2">
+                        <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => handleEdit(sub)}>Edit</button>
+                        <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => handleDelete(sub)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+            {showAdd || editSubtopic ? (
+              <form onSubmit={editSubtopic ? handleUpdate : handleAdd} className="w-full mb-4">
+                <div className="mb-4">
+                  <label className="block text-gray-800 mb-2 font-semibold">Subtopic Name</label>
+                  <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+                  {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-800 mb-2 font-semibold">Description</label>
+                  <input type="text" name="description" value={form.description} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-800 mb-2 font-semibold">Order</label>
+                  <input type="number" name="order" value={form.order} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+                </div>
+                <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">{editSubtopic ? 'Update Subtopic' : 'Add Subtopic'}</button>
+                <button type="button" className="w-full mt-2 py-3 rounded-xl border border-white/30 bg-gray-200 text-blue-700 font-bold shadow-lg hover:bg-gray-300 transition" onClick={() => { setEditSubtopic(null); setForm({ name: '', description: '', order: '' }); setShowAdd(false); }}>Cancel</button>
+              </form>
+            ) : (
+              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition mb-2" onClick={() => { setShowAdd(true); setEditSubtopic(null); setForm({ name: '', description: '', order: '' }); }}>+ Add Subtopic</button>
+            )}
+            {deleteSubtopic && (
+              <ConfirmDeleteSubtopicModal subtopic={deleteSubtopic} onClose={() => setDeleteSubtopic(null)} onConfirm={confirmDelete} />
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Add ConfirmDeleteSubtopicModal component
+function ConfirmDeleteSubtopicModal({ subtopic, onClose, onConfirm }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Subtopic</h2>
+        <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{subtopic.name}</span>?</p>
         <div className="flex gap-4">
           <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
           <button onClick={onConfirm} className="px-6 py-2 rounded-xl border border-red-500 bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
@@ -696,6 +881,14 @@ export default function AdminManagementPanel() {
   const [isEditingTopic, setIsEditingTopic] = useState(false);
   const [deleteTopic, setDeleteTopic] = useState(null);
   const [isDeletingTopic, setIsDeletingTopic] = useState(false);
+  const [subtopicModalTopic, setSubtopicModalTopic] = useState(null);
+  const [allTeachers, setAllTeachers] = useState([]);
+  const [publicHoliday, setPublicHoliday] = useState({ teacherIds: [], date: '', days: 1, reason: '' });
+  const [assigningPublicHoliday, setAssigningPublicHoliday] = useState(false);
+  const [selectAllTeachers, setSelectAllTeachers] = useState(false);
+  // Add state for personal holiday
+  const [personalHoliday, setPersonalHoliday] = useState({ teacherId: '', date: '', days: 1, reason: '' });
+  const [assigningPersonalHoliday, setAssigningPersonalHoliday] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -795,6 +988,11 @@ export default function AdminManagementPanel() {
             setTopics(allTopics);
           });
       }
+    }
+    if (activeTab === 'holidays') {
+      fetch('http://localhost:5000/api/teachers')
+        .then(res => res.json())
+        .then(data => setAllTeachers(Array.isArray(data) ? data : []));
     }
   }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject]);
 
@@ -1073,6 +1271,7 @@ export default function AdminManagementPanel() {
       body: JSON.stringify(form),
     });
     if (res.ok) {
+      alert('Topic added successfully!');
       setShowAddTopic(false);
       if (selectedTopicSubject) {
         fetch(`http://localhost:5000/api/topics?subject_id=${selectedTopicSubject}`)
@@ -1084,12 +1283,18 @@ export default function AdminManagementPanel() {
     }
   };
   const handleEditTopic = async (form) => {
+    // Only send name and subject_id to backend
+    const payload = {
+      name: form.name,
+      subject_id: form.subject_id
+    };
     const res = await fetch(`http://localhost:5000/api/topics/${form.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (res.ok) {
+      alert('Topic updated successfully!');
       setEditTopic(null);
       setIsEditingTopic(false);
       if (selectedTopicSubject) {
@@ -1119,6 +1324,77 @@ export default function AdminManagementPanel() {
     }
     setDeleteTopic(null);
     setIsDeletingTopic(false);
+  };
+
+  const handlePublicHolidayChange = e => {
+    const { name, value, options } = e.target;
+    if (name === 'teacherIds') {
+      // Multi-select
+      const selected = Array.from(options).filter(o => o.selected).map(o => o.value);
+      setPublicHoliday(ph => ({ ...ph, teacherIds: selected }));
+    } else {
+      setPublicHoliday(ph => ({ ...ph, [name]: value }));
+    }
+  };
+
+  const handleAssignPublicHoliday = async e => {
+    e.preventDefault();
+    setAssigningPublicHoliday(true);
+    const teacherIds = publicHoliday.teacherIds.length > 0 ? publicHoliday.teacherIds : allTeachers.map(t => t.id);
+    const promises = teacherIds.map(id =>
+      fetch('http://localhost:5000/api/time-off', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: id, date: publicHoliday.date, days: publicHoliday.days, reason: publicHoliday.reason })
+      })
+    );
+    await Promise.all(promises);
+    setAssigningPublicHoliday(false);
+    setPublicHoliday({ teacherIds: [], date: '', days: 1, reason: '' });
+    alert('Public holiday assigned successfully!');
+  };
+
+  const handleTeacherCheckboxChange = (id) => {
+    setPublicHoliday(ph => {
+      const teacherIds = ph.teacherIds.includes(id)
+        ? ph.teacherIds.filter(tid => tid !== id)
+        : [...ph.teacherIds, id];
+      return { ...ph, teacherIds };
+    });
+  };
+
+  const handleSelectAllTeachers = () => {
+    setSelectAllTeachers(prev => {
+      const newVal = !prev;
+      setPublicHoliday(ph => ({
+        ...ph,
+        teacherIds: newVal ? allTeachers.map(t => t.id) : []
+      }));
+      return newVal;
+    });
+  };
+
+  const handlePersonalHolidayChange = e => {
+    const { name, value } = e.target;
+    setPersonalHoliday(ph => ({ ...ph, [name]: value }));
+  };
+
+  const handleAssignPersonalHoliday = async e => {
+    e.preventDefault();
+    setAssigningPersonalHoliday(true);
+    await fetch('http://localhost:5000/api/time-off', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: personalHoliday.teacherId,
+        date: personalHoliday.date,
+        days: personalHoliday.days,
+        reason: personalHoliday.reason
+      })
+    });
+    setAssigningPersonalHoliday(false);
+    setPersonalHoliday({ teacherId: '', date: '', days: 1, reason: '' });
+    alert('Personal holiday assigned successfully!');
   };
 
   return (
@@ -1191,9 +1467,13 @@ export default function AdminManagementPanel() {
                           <td className="px-4 py-2 flex gap-2">
                             <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => { setEditTeacher(t); setIsEditing(true); }}>Edit</button>
                             <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => { setDeleteTeacher(t); setIsDeleting(true); }}>Delete</button>
-                            <button className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-yellow-500 text-white hover:bg-yellow-700' : 'bg-green-500 text-white hover:bg-green-700'}`} onClick={() => handleToggleActive(t)}>{t.active ? 'Make Inactive' : 'Make Active'}</button>
+                            <button
+                              className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-red-500 text-white hover:bg-red-700' : 'bg-green-500 text-white hover:bg-green-700'}`}
+                              onClick={() => handleToggleActive(t)}
+                            >
+                              {t.active ? 'Make Inactive' : 'Make Active'}
+                            </button>
                             <button className="px-3 py-1 rounded bg-blue-400 text-white font-semibold hover:bg-blue-700" onClick={() => openAssignCoursesModal(t)}>Assign Courses</button>
-                            <button className="px-3 py-1 rounded bg-purple-500 text-white font-semibold hover:bg-purple-700" onClick={() => { setHolidayTeacher(t); setShowHolidayModal(true); }}>Add Holiday</button>
                           </td>
                         </tr>
                       ))
@@ -1354,12 +1634,101 @@ export default function AdminManagementPanel() {
                         <td className="px-4 py-2 flex gap-2">
                           <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => { setEditTopic(t); setIsEditingTopic(true); }}>Edit</button>
                           <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => handleDeleteTopic(t)}>Delete</button>
+                          <button className="px-3 py-1 rounded bg-purple-500 text-white font-semibold hover:bg-purple-700" onClick={() => setSubtopicModalTopic(t)}>Subtopics</button>
                         </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+          </section>
+        )}
+        {activeTab === 'holidays' && (
+          <section>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-blue-800">Manage Holidays</h2>
+            </div>
+            <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200">
+              <h3 className="font-semibold text-blue-700 mb-4">Assign Public Holiday</h3>
+              <form onSubmit={handleAssignPublicHoliday} className="mb-8">
+                <label className="block text-gray-800 mb-2 font-semibold">Select Teachers:</label>
+                <div className="mb-2 max-h-40 overflow-y-auto border border-blue-200 rounded-xl bg-white/80 p-3 shadow-inner">
+                  <div className="flex items-center mb-2">
+                    <input type="checkbox" checked={selectAllTeachers} onChange={handleSelectAllTeachers} id="selectAllTeachers" className="accent-blue-600 scale-110" />
+                    <label htmlFor="selectAllTeachers" className="ml-2 font-semibold text-blue-700 cursor-pointer">Select All</label>
+                  </div>
+                  {allTeachers.map(t => (
+                    <div key={t.id} className="flex items-center mb-1 hover:bg-blue-50 rounded px-2 transition">
+                      <input
+                        type="checkbox"
+                        checked={publicHoliday.teacherIds.includes(t.id)}
+                        onChange={() => handleTeacherCheckboxChange(t.id)}
+                        id={`teacher_${t.id}`}
+                        className="accent-blue-600 scale-110"
+                      />
+                      <label htmlFor={`teacher_${t.id}`} className="ml-2 text-blue-900 cursor-pointer">{t.name} <span className="text-xs text-gray-500">({t.email})</span></label>
+                    </div>
+                  ))}
+                </div>
+                <label className="block text-gray-800 mb-2 font-semibold">Holiday Date:</label>
+                <input type="date" name="date" value={publicHoliday.date} onChange={handlePublicHolidayChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2" required />
+                <label className="block text-gray-800 mb-2 font-semibold">Reason:</label>
+                <input type="text" name="reason" value={publicHoliday.reason} onChange={handlePublicHolidayChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2" placeholder="Reason for holiday" required />
+                <button type="submit" className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition mt-2" disabled={assigningPublicHoliday}>{assigningPublicHoliday ? 'Assigning...' : 'Assign Public Holiday'}</button>
+              </form>
+              <h3 className="font-semibold text-blue-700 mb-4">Assign Personal Holiday</h3>
+              <form onSubmit={handleAssignPersonalHoliday} className="mb-8">
+                <label className="block text-gray-800 mb-2 font-semibold">Select Teacher:</label>
+                <select
+                  name="teacherId"
+                  value={personalHoliday.teacherId}
+                  onChange={handlePersonalHolidayChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
+                  required
+                >
+                  <option value="">Type or select teacher name</option>
+                  {allTeachers.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
+                  ))}
+                </select>
+                <label className="block text-gray-800 mb-2 font-semibold">Holiday Date:</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={personalHoliday.date}
+                  onChange={handlePersonalHolidayChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
+                  required
+                />
+                <label className="block text-gray-800 mb-2 font-semibold">Number of Days:</label>
+                <input
+                  type="number"
+                  name="days"
+                  value={personalHoliday.days}
+                  onChange={handlePersonalHolidayChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
+                  min="1"
+                  required
+                />
+                <label className="block text-gray-800 mb-2 font-semibold">Reason:</label>
+                <input
+                  type="text"
+                  name="reason"
+                  value={personalHoliday.reason}
+                  onChange={handlePersonalHolidayChange}
+                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
+                  placeholder="Reason for holiday"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition mt-2"
+                  disabled={assigningPersonalHoliday}
+                >
+                  {assigningPersonalHoliday ? 'Assigning...' : 'Assign Personal Holiday'}
+                </button>
+              </form>
             </div>
           </section>
         )}
@@ -1453,6 +1822,9 @@ export default function AdminManagementPanel() {
       )}
       {isDeletingTopic && deleteTopic && (
         <ConfirmDeleteTopicModal topic={deleteTopic} onClose={() => { setDeleteTopic(null); setIsDeletingTopic(false); }} onConfirm={confirmDeleteTopic} />
+      )}
+      {subtopicModalTopic && (
+        <SubtopicModal topic={subtopicModalTopic} onClose={() => setSubtopicModalTopic(null)} />
       )}
     </div>
   );

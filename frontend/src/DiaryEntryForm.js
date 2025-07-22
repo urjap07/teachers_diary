@@ -18,6 +18,7 @@ export default function DiaryEntryForm({ userId }) {
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
+  const [subtopics, setSubtopics] = useState([]);
   const [showTimeOff, setShowTimeOff] = useState(false);
   const [isHoliday, setIsHoliday] = useState(false);
 
@@ -81,6 +82,19 @@ export default function DiaryEntryForm({ userId }) {
     }
   }, [form.subject]);
 
+  // Fetch subtopics when topic changes
+  useEffect(() => {
+    if (form.topic) {
+      fetch(`http://localhost:5000/api/subtopics?topic_id=${form.topic}`)
+        .then(res => res.json())
+        .then(data => setSubtopics(Array.isArray(data) ? data : []));
+      setForm(f => ({ ...f, subtopic: '' }));
+    } else {
+      setSubtopics([]);
+      setForm(f => ({ ...f, subtopic: '' }));
+    }
+  }, [form.topic]);
+
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user && user.role === 'teacher') {
@@ -116,6 +130,7 @@ export default function DiaryEntryForm({ userId }) {
     if (!form.date) errs.date = 'Date is required';
     if (!form.subject) errs.subject = 'Subject is required';
     if (!form.topic) errs.topic = 'Topic/Unit is required';
+    if (!form.subtopic) errs.subtopic = 'Subtopic is required';
     return errs;
   };
 
@@ -138,6 +153,7 @@ export default function DiaryEntryForm({ userId }) {
             date: form.date,
             subject_id: form.subject,
             topic_id: form.topic,
+            subtopic_id: form.subtopic,
             remarks: form.remarks,
           }),
         });
@@ -313,6 +329,21 @@ export default function DiaryEntryForm({ userId }) {
                 ))}
               </select>
               {errors.topic && <p className="text-red-500 text-sm mt-1">{errors.topic}</p>}
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-800 mb-2 font-semibold">Subtopic/Unit/Chapter</label>
+              <select
+                name="subtopic"
+                value={form.subtopic || ''}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.subtopic ? 'ring-2 ring-red-400' : ''}`}
+              >
+                <option value="">Select subtopic</option>
+                {subtopics.map(sub => (
+                  <option key={sub.id} value={sub.id}>{sub.name}</option>
+                ))}
+              </select>
+              {errors.subtopic && <p className="text-red-500 text-sm mt-1">{errors.subtopic}</p>}
             </div>
             <div className="mb-6">
               <label className="block text-gray-800 mb-2 font-semibold">Remarks</label>

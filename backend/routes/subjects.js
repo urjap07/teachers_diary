@@ -166,4 +166,65 @@ router.post('/teacher-subjects/assign', async (req, res) => {
   }
 });
 
+// Get subtopics for a topic
+router.get('/subtopics', async (req, res) => {
+  const { topic_id } = req.query;
+  if (!topic_id) {
+    return res.status(400).json({ message: 'topic_id is required' });
+  }
+  try {
+    const [subtopics] = await db.query(
+      'SELECT id, name, description, `order` FROM subtopics WHERE topic_id = ? ORDER BY `order` ASC, id ASC',
+      [topic_id]
+    );
+    res.json(subtopics);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Add a new subtopic
+router.post('/subtopics', async (req, res) => {
+  const { name, topic_id, description, order } = req.body;
+  if (!name || !topic_id) {
+    return res.status(400).json({ message: 'Name and topic_id are required' });
+  }
+  try {
+    await db.query(
+      'INSERT INTO subtopics (name, topic_id, description, `order`) VALUES (?, ?, ?, ?)',
+      [name, topic_id, description || '', order || null]
+    );
+    res.json({ message: 'Subtopic added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Update a subtopic
+router.put('/subtopics/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, topic_id, description, order } = req.body;
+  if (!name || !topic_id) {
+    return res.status(400).json({ message: 'Name and topic_id are required' });
+  }
+  try {
+    await db.query('UPDATE subtopics SET name=?, topic_id=?, description=?, `order`=? WHERE id=?', [name, topic_id, description || '', order || null, id]);
+    res.json({ message: 'Subtopic updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete a subtopic by ID
+router.delete('/subtopics/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: 'Subtopic ID is required' });
+  try {
+    await db.query('DELETE FROM subtopics WHERE id = ?', [id]);
+    res.json({ message: 'Subtopic deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;
