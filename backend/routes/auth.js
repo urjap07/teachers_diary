@@ -90,10 +90,21 @@ router.put('/teacher/:id', async (req, res) => {
 // Delete teacher
 router.delete('/teacher/:id', async (req, res) => {
   const { id } = req.params;
+  const conn = await db.getConnection();
   try {
-    await db.query('DELETE FROM users WHERE id=? AND role=?', [id, 'teacher']);
+    await conn.beginTransaction();
+    // Remove course assignments
+    await conn.query('DELETE FROM teacher_courses WHERE teacher_id=?', [id]);
+    // Remove subject assignments if you have such a table
+    await conn.query('DELETE FROM teacher_subjects WHERE teacher_id=?', [id]);
+    // Remove the teacher
+    await conn.query('DELETE FROM users WHERE id=? AND role=?', [id, 'teacher']);
+    await conn.commit();
+    conn.release();
     res.json({ message: 'Teacher deleted successfully' });
   } catch (err) {
+    await conn.rollback();
+    conn.release();
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });

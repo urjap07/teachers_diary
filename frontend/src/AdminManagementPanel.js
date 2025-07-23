@@ -147,7 +147,7 @@ function AddTeacherModal({ onClose, onSubmit, courses }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+      <div className="bg-white p-4 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
           onClick={onClose}
@@ -155,33 +155,33 @@ function AddTeacherModal({ onClose, onSubmit, courses }) {
         >
           &times;
         </button>
-        <h2 className="text-2xl font-bold text-blue-800 mb-6">Add Teacher</h2>
+        <h2 className="text-2xl font-bold text-blue-800 mb-4">Add Teacher</h2>
         <form onSubmit={handleSubmit} className="w-full">
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Name</label>
-            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          <div className="mb-3">
+            <label className="block text-gray-800 mb-1 font-semibold">Name</label>
+            <input type="text" name="name" value={form.name} onChange={handleChange} className="w-full px-3 py-2 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
             {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Email</label>
-            <input type="email" name="email" value={form.email} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          <div className="mb-3">
+            <label className="block text-gray-800 mb-1 font-semibold">Email</label>
+            <input type="email" name="email" value={form.email} onChange={handleChange} className="w-full px-3 py-2 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
             {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Mobile</label>
-            <input type="text" name="mobile" value={form.mobile} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          <div className="mb-3">
+            <label className="block text-gray-800 mb-1 font-semibold">Mobile</label>
+            <input type="text" name="mobile" value={form.mobile} onChange={handleChange} className="w-full px-3 py-2 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
             {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Password</label>
-            <input type="password" name="password" value={form.password} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
+          <div className="mb-3">
+            <label className="block text-gray-800 mb-1 font-semibold">Password</label>
+            <input type="password" name="password" value={form.password} onChange={handleChange} className="w-full px-3 py-2 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
             {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">Courses</label>
-            <div className="max-h-40 overflow-y-auto border border-blue-200 rounded-xl bg-white/80 p-3 shadow-inner">
+          <div className="mb-3">
+            <label className="block text-gray-800 mb-1 font-semibold">Courses</label>
+            <div className="max-h-32 overflow-y-auto border border-blue-200 rounded-xl bg-white/80 p-2 shadow-inner">
               {courses && courses.map(c => (
-                <div key={c.id} className="flex items-center mb-2 hover:bg-blue-50 rounded px-2 transition">
+                <div key={c.id} className="flex items-center mb-1 hover:bg-blue-50 rounded px-2 transition">
                   <input
                     type="checkbox"
                     checked={form.courseIds.includes(String(c.id)) || form.courseIds.includes(c.id)}
@@ -189,18 +189,18 @@ function AddTeacherModal({ onClose, onSubmit, courses }) {
                     id={`course_${c.id}`}
                     className="accent-blue-600 scale-110"
                   />
-                  <label htmlFor={`course_${c.id}`} className="ml-2 text-blue-900 cursor-pointer">{c.name}</label>
+                  <label htmlFor={`course_${c.id}`} className="ml-2 text-blue-900 cursor-pointer text-sm">{c.name}</label>
                 </div>
               ))}
             </div>
             {errors.courseIds && <p className="text-red-500 text-sm mt-1">{errors.courseIds}</p>}
           </div>
-          <div className="mb-4">
-            <label className="block text-gray-800 mb-2 font-semibold">P-Day</label>
-            <input type="number" name="pDay" value={form.pDay} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" min="0" />
+          <div className="mb-3">
+            <label className="block text-gray-800 mb-1 font-semibold">P-Day</label>
+            <input type="number" name="pDay" value={form.pDay} onChange={handleChange} className="w-full px-3 py-2 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" min="0" />
             {errors.pDay && <p className="text-red-500 text-sm mt-1">{errors.pDay}</p>}
           </div>
-          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Teacher</button>
+          <button type="submit" className="w-full py-2 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Teacher</button>
         </form>
       </div>
     </div>

@@ -257,12 +257,13 @@ router.delete('/holidays/:id', async (req, res) => {
 // --- Leave Applications ---
 // Teachers can apply for leave
 router.post('/leaves', async (req, res) => {
-  const { user_id, date, reason } = req.body;
+  const { user_id, date, reason, days } = req.body;
   if (!user_id || !date) {
     return res.status(400).json({ message: 'user_id and date are required' });
   }
   try {
-    await db.query('INSERT INTO leaves (user_id, date, reason, status) VALUES (?, ?, ?, ?)', [user_id, date, reason || '', 'pending']);
+    const daysNum = days ? parseFloat(days) : 1;
+    await db.query('INSERT INTO leaves (user_id, date, reason, days, status) VALUES (?, ?, ?, ?, ?)', [user_id, date, reason || '', daysNum, 'pending']);
     res.json({ message: 'Leave applied successfully!' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
