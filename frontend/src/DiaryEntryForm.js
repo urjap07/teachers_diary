@@ -21,6 +21,8 @@ export default function DiaryEntryForm({ userId }) {
   const [subtopics, setSubtopics] = useState([]);
   const [showTimeOff, setShowTimeOff] = useState(false);
   const [isHoliday, setIsHoliday] = useState(false);
+  const [publicHolidays, setPublicHolidays] = useState([]);
+  const [isPublicHoliday, setIsPublicHoliday] = useState(false);
 
   const navigate = useNavigate();
 
@@ -115,6 +117,22 @@ export default function DiaryEntryForm({ userId }) {
         });
     }
   }, []);
+
+  // Fetch public holidays on mount
+  useEffect(() => {
+    fetch('/api/holidays')
+      .then(res => res.json())
+      .then(data => setPublicHolidays(Array.isArray(data) ? data : []));
+  }, []);
+
+  // Check if selected date is a public holiday
+  useEffect(() => {
+    if (!form.date || publicHolidays.length === 0) {
+      setIsPublicHoliday(false);
+      return;
+    }
+    setIsPublicHoliday(publicHolidays.some(h => (h.date && h.date.slice(0, 10)) === form.date));
+  }, [form.date, publicHolidays]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -218,8 +236,13 @@ export default function DiaryEntryForm({ userId }) {
             Today is a holiday for you. No diary entry required.
           </div>
         )}
+        {isPublicHoliday && (
+          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 font-semibold rounded">
+            This date is a public holiday. No diary entry allowed.
+          </div>
+        )}
         <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-lg rounded-2xl p-8 w-full mb-4" style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}>
-          <form onSubmit={handleSubmit} className="w-full" style={{ opacity: isHoliday ? 0.5 : 1, pointerEvents: isHoliday ? 'none' : 'auto' }}>
+          <form onSubmit={handleSubmit} className="w-full" style={{ opacity: isHoliday || isPublicHoliday ? 0.5 : 1, pointerEvents: isHoliday || isPublicHoliday ? 'none' : 'auto' }}>
             <div className="mb-4">
               <label className="block text-gray-800 mb-2 font-semibold">Course</label>
               <select

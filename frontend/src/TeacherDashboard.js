@@ -11,6 +11,11 @@ const TABS = [
 
 function ExportExcelModal({ onClose, onExport }) {
   const [option, setOption] = useState('topic');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  const currentYear = new Date().getFullYear();
   return (
     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-start justify-center pt-40 z-50">
       <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center min-h-[40vh]">
@@ -32,10 +37,46 @@ function ExportExcelModal({ onClose, onExport }) {
             <option value="topic">Topic-wise</option>
             <option value="course">Course-wise</option>
             <option value="semester">Semester-wise</option>
+            <option value="date-range">Date Range</option>
+            <option value="month-wise">Month-wise</option>
           </select>
         </div>
+        {option === 'date-range' && (
+          <div className="mb-6 w-full flex gap-2">
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">Start Date</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">End Date</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+          </div>
+        )}
+        {option === 'month-wise' && (
+          <div className="mb-6 w-full flex gap-2">
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">Month</label>
+              <select value={month} onChange={e => setMonth(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="">Select</option>
+                {[...Array(12)].map((_, i) => (
+                  <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">Year</label>
+              <select value={year} onChange={e => setYear(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="">Select</option>
+                {[...Array(5)].map((_, i) => (
+                  <option key={currentYear-i} value={currentYear-i}>{currentYear-i}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         <button
-          onClick={() => onExport(option)}
+          onClick={() => onExport(option, { startDate, endDate, month, year })}
           className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition"
         >Export</button>
       </div>
@@ -65,10 +106,32 @@ export default function TeacherDashboard({ userId }) {
   const user = JSON.parse(localStorage.getItem('user'));
   const userName = user?.name || user?.username || '';
 
-  const handleExport = (option) => {
+  const handleExport = async (option, extra = {}) => {
+    if (option === 'date-range' || option === 'month-wise') {
+      // Backend export
+      let url = 'http://localhost:5000/api/export-excel?type=' + option + '&user_id=' + userId;
+      if (option === 'date-range') {
+        url += `&startDate=${extra.startDate}&endDate=${extra.endDate}`;
+      } else if (option === 'month-wise') {
+        url += `&month=${extra.month}&year=${extra.year}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) {
+        alert('Failed to export Excel');
+        return;
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = 'diary_entries.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setShowExportModal(false);
+      return;
+    }
     let data = [];
     if (option === 'topic') {
-      // Group by topic
       data = allEntries.map(e => ({
         Date: e.date,
         Course: e.course_name,
@@ -81,7 +144,6 @@ export default function TeacherDashboard({ userId }) {
         Remarks: e.remarks
       }));
     } else if (option === 'course') {
-      // Group by course
       data = allEntries.map(e => ({
         Course: e.course_name,
         Date: e.date,
@@ -94,7 +156,6 @@ export default function TeacherDashboard({ userId }) {
         Remarks: e.remarks
       }));
     } else if (option === 'semester') {
-      // Group by semester
       data = allEntries.map(e => ({
         Semester: e.semester,
         Course: e.course_name,

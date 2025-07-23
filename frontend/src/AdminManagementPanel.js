@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import TimeOffForm from './TimeOffForm';
+import PublicHolidaysPanel from './PublicHolidaysPanel';
 
 const TABS = [
   { key: 'teachers', label: 'Teachers' },
   { key: 'courses', label: 'Courses' },
   { key: 'subjects', label: 'Subjects' },
   { key: 'topics', label: 'Topics' },
-  { key: 'holidays', label: 'Holidays' }, // New Holidays tab
+  { key: 'holidays', label: 'Public Holidays' },
 ];
 
 function EditTeacherModal({ teacher, onClose, onSubmit }) {
@@ -101,12 +102,27 @@ function ConfirmDeleteModal({ teacher, onClose, onConfirm }) {
   );
 }
 
-function AddTeacherModal({ onClose, onSubmit }) {
-  const [form, setForm] = useState({ name: '', email: '', mobile: '', password: '' });
+function AddTeacherModal({ onClose, onSubmit, courses }) {
+  const [form, setForm] = useState({ name: '', email: '', mobile: '', password: '', courseIds: [], pDay: '' });
   const [errors, setErrors] = useState({});
 
   const handleChange = e => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value, type, options } = e.target;
+    if (name === 'courseIds') {
+      // For checkboxes, handle manually
+      return;
+    }
+    setForm(f => ({ ...f, [name]: value }));
+  };
+
+  const handleCourseCheckbox = id => {
+    setForm(f => {
+      const exists = f.courseIds.includes(id);
+      return {
+        ...f,
+        courseIds: exists ? f.courseIds.filter(cid => cid !== id) : [...f.courseIds, id]
+      };
+    });
   };
 
   const validate = () => {
@@ -115,6 +131,8 @@ function AddTeacherModal({ onClose, onSubmit }) {
     if (!form.email) errs.email = 'Email is required';
     if (!form.mobile) errs.mobile = 'Mobile is required';
     if (!form.password) errs.password = 'Password is required';
+    if (!form.courseIds || form.courseIds.length === 0) errs.courseIds = 'At least one course is required';
+    if (!form.pDay) errs.pDay = 'P-Day is required';
     return errs;
   };
 
@@ -154,10 +172,33 @@ function AddTeacherModal({ onClose, onSubmit }) {
             <input type="text" name="mobile" value={form.mobile} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
             {errors.mobile && <p className="text-red-500 text-sm mt-1">{errors.mobile}</p>}
           </div>
-          <div className="mb-6">
+          <div className="mb-4">
             <label className="block text-gray-800 mb-2 font-semibold">Password</label>
             <input type="password" name="password" value={form.password} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" />
             {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Courses</label>
+            <div className="max-h-40 overflow-y-auto border border-blue-200 rounded-xl bg-white/80 p-3 shadow-inner">
+              {courses && courses.map(c => (
+                <div key={c.id} className="flex items-center mb-2 hover:bg-blue-50 rounded px-2 transition">
+                  <input
+                    type="checkbox"
+                    checked={form.courseIds.includes(String(c.id)) || form.courseIds.includes(c.id)}
+                    onChange={() => handleCourseCheckbox(String(c.id))}
+                    id={`course_${c.id}`}
+                    className="accent-blue-600 scale-110"
+                  />
+                  <label htmlFor={`course_${c.id}`} className="ml-2 text-blue-900 cursor-pointer">{c.name}</label>
+                </div>
+              ))}
+            </div>
+            {errors.courseIds && <p className="text-red-500 text-sm mt-1">{errors.courseIds}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">P-Day</label>
+            <input type="number" name="pDay" value={form.pDay} onChange={handleChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner" min="0" />
+            {errors.pDay && <p className="text-red-500 text-sm mt-1">{errors.pDay}</p>}
           </div>
           <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Teacher</button>
         </form>
@@ -860,7 +901,6 @@ export default function AdminManagementPanel() {
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [assignCoursesTeacher, setAssignCoursesTeacher] = useState(null);
   const [assignCoursesModalOpen, setAssignCoursesModalOpen] = useState(false);
-  const [holidayTeacher, setHolidayTeacher] = useState(null);
   const [showHolidayModal, setShowHolidayModal] = useState(false);
   const [subjects, setSubjects] = useState([]);
   const [subjectCourses, setSubjectCourses] = useState([]);
@@ -886,9 +926,6 @@ export default function AdminManagementPanel() {
   const [publicHoliday, setPublicHoliday] = useState({ teacherIds: [], date: '', days: 1, reason: '' });
   const [assigningPublicHoliday, setAssigningPublicHoliday] = useState(false);
   const [selectAllTeachers, setSelectAllTeachers] = useState(false);
-  // Add state for personal holiday
-  const [personalHoliday, setPersonalHoliday] = useState({ teacherId: '', date: '', days: 1, reason: '' });
-  const [assigningPersonalHoliday, setAssigningPersonalHoliday] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -903,6 +940,11 @@ export default function AdminManagementPanel() {
           setTeachers([]);
           setFilteredTeachers([]);
         });
+      // Fetch courses for Add Teacher modal
+      fetch('http://localhost:5000/api/courses')
+        .then(res => res.json())
+        .then(data => setCourses(Array.isArray(data) ? data : []))
+        .catch(() => setCourses([]));
     }
     if (activeTab === 'courses') {
       fetch('http://localhost:5000/api/courses')
@@ -1374,28 +1416,6 @@ export default function AdminManagementPanel() {
     });
   };
 
-  const handlePersonalHolidayChange = e => {
-    const { name, value } = e.target;
-    setPersonalHoliday(ph => ({ ...ph, [name]: value }));
-  };
-
-  const handleAssignPersonalHoliday = async e => {
-    e.preventDefault();
-    setAssigningPersonalHoliday(true);
-    await fetch('http://localhost:5000/api/time-off', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: personalHoliday.teacherId,
-        date: personalHoliday.date,
-        days: personalHoliday.days,
-        reason: personalHoliday.reason
-      })
-    });
-    setAssigningPersonalHoliday(false);
-    setPersonalHoliday({ teacherId: '', date: '', days: 1, reason: '' });
-    alert('Personal holiday assigned successfully!');
-  };
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
@@ -1468,7 +1488,7 @@ export default function AdminManagementPanel() {
                             <button className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700" onClick={() => { setEditTeacher(t); setIsEditing(true); }}>Edit</button>
                             <button className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700" onClick={() => { setDeleteTeacher(t); setIsDeleting(true); }}>Delete</button>
                             <button
-                              className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-red-500 text-white hover:bg-red-700' : 'bg-green-500 text-white hover:bg-green-700'}`}
+                              className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-yellow-500 text-white hover:bg-yellow-700' : 'bg-green-500 text-white hover:bg-green-700'}`}
                               onClick={() => handleToggleActive(t)}
                             >
                               {t.active ? 'Make Inactive' : 'Make Active'}
@@ -1646,90 +1666,7 @@ export default function AdminManagementPanel() {
         )}
         {activeTab === 'holidays' && (
           <section>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-blue-800">Manage Holidays</h2>
-            </div>
-            <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200">
-              <h3 className="font-semibold text-blue-700 mb-4">Assign Public Holiday</h3>
-              <form onSubmit={handleAssignPublicHoliday} className="mb-8">
-                <label className="block text-gray-800 mb-2 font-semibold">Select Teachers:</label>
-                <div className="mb-2 max-h-40 overflow-y-auto border border-blue-200 rounded-xl bg-white/80 p-3 shadow-inner">
-                  <div className="flex items-center mb-2">
-                    <input type="checkbox" checked={selectAllTeachers} onChange={handleSelectAllTeachers} id="selectAllTeachers" className="accent-blue-600 scale-110" />
-                    <label htmlFor="selectAllTeachers" className="ml-2 font-semibold text-blue-700 cursor-pointer">Select All</label>
-                  </div>
-                  {allTeachers.map(t => (
-                    <div key={t.id} className="flex items-center mb-1 hover:bg-blue-50 rounded px-2 transition">
-                      <input
-                        type="checkbox"
-                        checked={publicHoliday.teacherIds.includes(t.id)}
-                        onChange={() => handleTeacherCheckboxChange(t.id)}
-                        id={`teacher_${t.id}`}
-                        className="accent-blue-600 scale-110"
-                      />
-                      <label htmlFor={`teacher_${t.id}`} className="ml-2 text-blue-900 cursor-pointer">{t.name} <span className="text-xs text-gray-500">({t.email})</span></label>
-                    </div>
-                  ))}
-                </div>
-                <label className="block text-gray-800 mb-2 font-semibold">Holiday Date:</label>
-                <input type="date" name="date" value={publicHoliday.date} onChange={handlePublicHolidayChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2" required />
-                <label className="block text-gray-800 mb-2 font-semibold">Reason:</label>
-                <input type="text" name="reason" value={publicHoliday.reason} onChange={handlePublicHolidayChange} className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2" placeholder="Reason for holiday" required />
-                <button type="submit" className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition mt-2" disabled={assigningPublicHoliday}>{assigningPublicHoliday ? 'Assigning...' : 'Assign Public Holiday'}</button>
-              </form>
-              <h3 className="font-semibold text-blue-700 mb-4">Assign Personal Holiday</h3>
-              <form onSubmit={handleAssignPersonalHoliday} className="mb-8">
-                <label className="block text-gray-800 mb-2 font-semibold">Select Teacher:</label>
-                <select
-                  name="teacherId"
-                  value={personalHoliday.teacherId}
-                  onChange={handlePersonalHolidayChange}
-                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
-                  required
-                >
-                  <option value="">Type or select teacher name</option>
-                  {allTeachers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.email})</option>
-                  ))}
-                </select>
-                <label className="block text-gray-800 mb-2 font-semibold">Holiday Date:</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={personalHoliday.date}
-                  onChange={handlePersonalHolidayChange}
-                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
-                  required
-                />
-                <label className="block text-gray-800 mb-2 font-semibold">Number of Days:</label>
-                <input
-                  type="number"
-                  name="days"
-                  value={personalHoliday.days}
-                  onChange={handlePersonalHolidayChange}
-                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
-                  min="1"
-                  required
-                />
-                <label className="block text-gray-800 mb-2 font-semibold">Reason:</label>
-                <input
-                  type="text"
-                  name="reason"
-                  value={personalHoliday.reason}
-                  onChange={handlePersonalHolidayChange}
-                  className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-2"
-                  placeholder="Reason for holiday"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition mt-2"
-                  disabled={assigningPersonalHoliday}
-                >
-                  {assigningPersonalHoliday ? 'Assigning...' : 'Assign Personal Holiday'}
-                </button>
-              </form>
-            </div>
+            <PublicHolidaysPanel />
           </section>
         )}
       </main>
@@ -1748,7 +1685,7 @@ export default function AdminManagementPanel() {
         />
       )}
       {showAddTeacher && (
-        <AddTeacherModal onClose={() => setShowAddTeacher(false)} onSubmit={handleAddTeacher} />
+        <AddTeacherModal onClose={() => setShowAddTeacher(false)} onSubmit={handleAddTeacher} courses={courses} />
       )}
       {isEditingCourse && editCourse && (
         <EditCourseModal
@@ -1774,7 +1711,7 @@ export default function AdminManagementPanel() {
           onSubmit={handleAssignCourses}
         />
       )}
-      {showHolidayModal && holidayTeacher && (
+      {showHolidayModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
             <button
@@ -1785,8 +1722,8 @@ export default function AdminManagementPanel() {
               &times;
             </button>
             <TimeOffForm
-              userId={holidayTeacher.id}
-              teacherName={holidayTeacher.name}
+              userId={assignCoursesTeacher?.id}
+              teacherName={assignCoursesTeacher?.name}
               onSuccess={() => setShowHolidayModal(false)}
             />
           </div>
