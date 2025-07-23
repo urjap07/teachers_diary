@@ -12,7 +12,7 @@ router.post('/login', async (req, res) => {
   try {
     // Try to find by mobile or email
     const [users] = await db.query(
-      'SELECT * FROM users WHERE email = ? OR mobile = ? LIMIT 1',
+      'SELECT id, name, email, role, shift, password_hash, active FROM users WHERE email = ? OR mobile = ? LIMIT 1',
       [identifier, identifier]
     );
     if (users.length === 0) {
@@ -28,7 +28,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     // Success!
-    res.json({ message: 'Login successful', user: { id: user.id, name: user.name, role: user.role } });
+    res.json({ message: 'Login successful', user: { id: user.id, name: user.name, role: user.role, shift: user.shift } });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

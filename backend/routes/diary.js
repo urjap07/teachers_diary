@@ -183,7 +183,11 @@ router.get('/holidays', async (req, res) => {
     // Force date to YYYY-MM-DD string to avoid timezone issues
     const holidaysFixed = holidays.map(h => ({
       ...h,
-      date: h.date instanceof Date ? h.date.toISOString().slice(0, 10) : h.date
+      date: h.date instanceof Date
+        ? (h.date.getFullYear() + '-' +
+           String(h.date.getMonth() + 1).padStart(2, '0') + '-' +
+           String(h.date.getDate()).padStart(2, '0'))
+        : h.date
     }));
     res.json(holidaysFixed);
   } catch (err) {
@@ -203,7 +207,14 @@ router.post('/holidays', async (req, res) => {
     return res.status(400).json({ message: 'Date and name are required' });
   }
   try {
-    await db.query('INSERT INTO holidays (date, name) VALUES (?, ?)', [date, name]);
+    // Ensure date is always a string in YYYY-MM-DD format
+    let dateStr = date;
+    if (date instanceof Date) {
+      dateStr = date.toISOString().slice(0, 10);
+    } else if (typeof date === 'string' && date.length > 10) {
+      dateStr = date.slice(0, 10);
+    }
+    await db.query('INSERT INTO holidays (date, name) VALUES (?, ?)', [dateStr, name]);
     res.json({ message: 'Holiday added successfully' });
   } catch (err) {
     console.log('Error adding holiday:', err); // Log the error for debugging
@@ -238,6 +249,21 @@ router.delete('/holidays/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM holidays WHERE id=?', [id]);
     res.json({ message: 'Holiday deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// --- Leave Applications ---
+// Teachers can apply for leave
+router.post('/leaves', async (req, res) => {
+  const { user_id, date, reason } = req.body;
+  if (!user_id || !date) {
+    return res.status(400).json({ message: 'user_id and date are required' });
+  }
+  try {
+    await db.query('INSERT INTO leaves (user_id, date, reason, status) VALUES (?, ?, ?, ?)', [user_id, date, reason || '', 'pending']);
+    res.json({ message: 'Leave applied successfully!' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

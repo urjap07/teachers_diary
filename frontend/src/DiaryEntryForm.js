@@ -23,6 +23,7 @@ export default function DiaryEntryForm({ userId }) {
   const [isHoliday, setIsHoliday] = useState(false);
   const [publicHolidays, setPublicHolidays] = useState([]);
   const [isPublicHoliday, setIsPublicHoliday] = useState(false);
+  const [leaveMsg, setLeaveMsg] = useState('');
 
   const navigate = useNavigate();
 
@@ -120,9 +121,17 @@ export default function DiaryEntryForm({ userId }) {
 
   // Fetch public holidays on mount
   useEffect(() => {
-    fetch('/api/holidays')
-      .then(res => res.json())
-      .then(data => setPublicHolidays(Array.isArray(data) ? data : []));
+    fetch('http://localhost:5000/api/holidays')
+      .then(res => {
+        const contentType = res.headers.get('content-type');
+        if (res.ok && contentType && contentType.includes('application/json')) {
+          return res.json();
+        } else {
+          return [];
+        }
+      })
+      .then(data => setPublicHolidays(Array.isArray(data) ? data : []))
+      .catch(() => setPublicHolidays([]));
   }, []);
 
   // Check if selected date is a public holiday
@@ -131,7 +140,12 @@ export default function DiaryEntryForm({ userId }) {
       setIsPublicHoliday(false);
       return;
     }
-    setIsPublicHoliday(publicHolidays.some(h => (h.date && h.date.slice(0, 10)) === form.date));
+    console.log('Comparing:', publicHolidays.map(h => h.date), 'with', form.date);
+    setIsPublicHoliday(
+      publicHolidays.some(
+        h => String(h.date).trim() === String(form.date).trim()
+      )
+    );
   }, [form.date, publicHolidays]);
 
   const handleChange = (e) => {
@@ -187,8 +201,31 @@ export default function DiaryEntryForm({ userId }) {
     }
   };
 
+  const shiftTimings = {
+    morning: { start: '08:00', end: '12:00' },
+    afternoon: { start: '12:01', end: '16:00' },
+    evening: { start: '16:01', end: '20:00' }
+  };
   const user = JSON.parse(localStorage.getItem('user'));
   const userName = user?.name || user?.username || '';
+  const shift = user?.shift;
+  const { start: shiftStart, end: shiftEnd } = shift ? shiftTimings[shift] : { start: undefined, end: undefined };
+  console.log('User:', user, 'Shift:', shift, 'Shift times:', shiftStart, shiftEnd);
+
+  function getTimeOptions(start, end) {
+    const options = [];
+    let [h, m] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    while (h < endH || (h === endH && m <= endM)) {
+      options.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      m += 30;
+      if (m >= 60) { h++; m = 0; }
+    }
+    return options;
+  }
+  const allowedTimes = (shiftStart && shiftEnd) ? getTimeOptions(shiftStart, shiftEnd) : [];
+
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
@@ -210,11 +247,39 @@ export default function DiaryEntryForm({ userId }) {
             type="button"
             className="px-4 py-2 rounded-xl border border-white/30 bg-white/20 text-blue-700 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/40 hover:text-blue-900 transition"
             style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}
-            onClick={() => setShowTimeOff(true)}
+            onClick={async () => {
+              try {
+                const res = await fetch('http://localhost:5000/api/leaves', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    user_id: userId,
+                    date: form.date,
+                    reason: 'Leave applied from diary entry form'
+                  })
+                });
+                if (res.ok) {
+                  setLeaveMsg('Leave applied successfully!');
+                } else {
+                  setLeaveMsg('Failed to apply for leave.');
+                }
+              } catch {
+                setLeaveMsg('Failed to apply for leave.');
+              }
+              setTimeout(() => setLeaveMsg(''), 1500);
+            }}
           >
-            + Add Time-Off
+            Apply for Leave
           </button>
         </div>
+        {leaveMsg && (
+          <div
+            className="mx-auto mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-800 font-bold rounded-2xl shadow-2xl text-xl"
+            style={{ maxWidth: '400px', textAlign: 'center' }}
+          >
+            {leaveMsg}
+          </div>
+        )}
         {/* Time-Off Modal */}
         {showTimeOff && (
           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-start justify-center pt-40 z-50">
@@ -237,8 +302,8 @@ export default function DiaryEntryForm({ userId }) {
           </div>
         )}
         {isPublicHoliday && (
-          <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 font-semibold rounded">
-            This date is a public holiday. No diary entry allowed.
+          <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-800 font-semibold rounded">
+            Today is a public holiday. Diary entry is not allowed.
           </div>
         )}
         <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-lg rounded-2xl p-8 w-full mb-4" style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}>
@@ -291,24 +356,32 @@ export default function DiaryEntryForm({ userId }) {
             <div className="mb-4 flex gap-4">
               <div className="w-1/2">
                 <label className="block text-gray-800 mb-2 font-semibold">Start Time</label>
-                <input
-                  type="time"
+                <select
                   name="startTime"
                   value={form.startTime}
                   onChange={handleChange}
                   className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.startTime ? 'ring-2 ring-red-400' : ''}`}
-                />
+                >
+                  <option value="">Select start time</option>
+                  {allowedTimes.map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
                 {errors.startTime && <p className="text-red-500 text-sm mt-1">{errors.startTime}</p>}
               </div>
               <div className="w-1/2">
                 <label className="block text-gray-800 mb-2 font-semibold">End Time</label>
-                <input
-                  type="time"
+                <select
                   name="endTime"
                   value={form.endTime}
                   onChange={handleChange}
                   className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.endTime ? 'ring-2 ring-red-400' : ''}`}
-                />
+                >
+                  <option value="">Select end time</option>
+                  {allowedTimes.map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
                 {errors.endTime && <p className="text-red-500 text-sm mt-1">{errors.endTime}</p>}
               </div>
             </div>

@@ -34,12 +34,17 @@ export default function PublicHolidaysPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error('Add failed');
-      setMsg('Holiday added successfully!');
-      setTimeout(() => setMsg(''), 1500);
-      setShowAdd(false);
-      setForm({ date: '', name: '' });
-      fetchHolidays();
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        setMsg('Holiday added successfully!');
+        setTimeout(() => setMsg(''), 1500);
+        setShowAdd(false);
+        setForm({ date: '', name: '' });
+        fetchHolidays();
+      } else {
+        const text = await res.text();
+        setMsg('Server error: ' + text);
+      }
     } catch {
       setMsg('Failed to add holiday');
     }
@@ -54,13 +59,18 @@ export default function PublicHolidaysPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) throw new Error('Edit failed');
-      setMsg('Holiday updated successfully!');
-      setTimeout(() => setMsg(''), 1500);
-      setShowEdit(false);
-      setForm({ date: '', name: '' });
-      setSelected(null);
-      fetchHolidays();
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        setMsg('Holiday updated successfully!');
+        setTimeout(() => setMsg(''), 1500);
+        setShowEdit(false);
+        setForm({ date: '', name: '' });
+        setSelected(null);
+        fetchHolidays();
+      } else {
+        const text = await res.text();
+        setMsg('Server error: ' + text);
+      }
     } catch {
       setMsg('Failed to edit holiday');
     }
@@ -71,12 +81,17 @@ export default function PublicHolidaysPanel() {
     setMsg('');
     try {
       const res = await fetch(`http://localhost:5000/api/holidays/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      setMsg('Holiday deleted successfully!');
-      setTimeout(() => setMsg(''), 1500);
-      fetchHolidays();
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
+        setMsg('Holiday deleted successfully!');
+        setTimeout(() => setMsg(''), 1500);
+        fetchHolidays();
+      } else {
+        const text = await res.text();
+        setMsg('Server error: ' + text);
+      }
     } catch {
-      setError('Failed to delete holiday');
+      setMsg('Failed to delete holiday');
     }
   };
 
@@ -98,7 +113,7 @@ export default function PublicHolidaysPanel() {
           <tbody>
             {holidays.map(h => (
               <tr key={h.id} className="border-t">
-                <td className="p-2">{h.date ? h.date.slice(0, 10) : ''}</td>
+                <td className="p-2">{h.date}</td>
                 <td className="p-2">{h.name}</td>
                 <td className="p-2">
                   <button
