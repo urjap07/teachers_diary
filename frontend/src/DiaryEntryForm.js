@@ -24,6 +24,16 @@ export default function DiaryEntryForm({ userId }) {
   const [publicHolidays, setPublicHolidays] = useState([]);
   const [isPublicHoliday, setIsPublicHoliday] = useState(false);
   const [leaveMsg, setLeaveMsg] = useState('');
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveReason, setLeaveReason] = useState('');
+  const [leaveDays, setLeaveDays] = useState(1);
+  const leaveTypes = [
+    { value: 'Casual Leave (CL)', label: 'Casual Leave (CL)' },
+    { value: 'Sick Leave (SL)', label: 'Sick Leave (SL)' },
+    { value: 'Earned Leave (EL)', label: 'Earned Leave (EL)' },
+    { value: 'Leave Without Pay (LWP)', label: 'Leave Without Pay (LWP)' },
+    { value: 'Maternity Leave (ML)', label: 'Maternity Leave (ML)' }
+  ];
 
   const navigate = useNavigate();
 
@@ -231,43 +241,28 @@ export default function DiaryEntryForm({ userId }) {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-lg relative flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
         {userName && (
-          <div className="w-full flex justify-start items-center mb-2">
+          <div className="w-full flex justify-start items-center mb-2 relative">
             <span className="text-lg font-semibold text-blue-800">Welcome, {userName}!</span>
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <span className="inline-block w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              </span>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-white/60 text-blue-900 font-medium text-sm shadow hover:bg-white/80 transition"
+                onClick={handleLogout}
+              >
+                <svg className="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1" /></svg>
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         )}
-        <div className="flex justify-between items-center mb-6 w-full backdrop-blur-2xl bg-white/20 border border-white/30 shadow-2xl rounded-2xl p-5" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18), 0 1.5px 8px 0 rgba(255,255,255,0.12)'}}>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 rounded-xl border border-white/30 bg-white/20 text-red-600 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/40 hover:text-red-700 transition"
-            style={{boxShadow: '0 4px 24px 0 rgba(255, 0, 0, 0.10)'}}
-          >
-            Logout
-          </button>
+        <div className="w-full flex justify-end items-center mb-6">
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border border-white/30 bg-white/20 text-blue-700 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/40 hover:text-blue-900 transition"
-            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}
-            onClick={async () => {
-              try {
-                const res = await fetch('http://localhost:5000/api/leaves', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    user_id: userId,
-                    date: form.date,
-                    reason: 'Leave applied from diary entry form'
-                  })
-                });
-                if (res.ok) {
-                  setLeaveMsg('Leave applied successfully!');
-                } else {
-                  setLeaveMsg('Failed to apply for leave.');
-                }
-              } catch {
-                setLeaveMsg('Failed to apply for leave.');
-              }
-              setTimeout(() => setLeaveMsg(''), 1500);
-            }}
+            className="mt-2 px-4 py-2 rounded-lg bg-white/60 text-blue-900 font-semibold shadow hover:bg-white/80 transition"
+            onClick={() => setShowLeaveModal(v => !v)}
           >
             Apply for Leave
           </button>
@@ -278,6 +273,74 @@ export default function DiaryEntryForm({ userId }) {
             style={{ maxWidth: '400px', textAlign: 'center' }}
           >
             {leaveMsg}
+          </div>
+        )}
+        {showLeaveModal && (
+          <div className="mb-8 w-full flex justify-center">
+            <div
+              className="backdrop-blur-lg bg-white/40 border border-white/30 shadow-2xl rounded-2xl max-w-lg w-full min-h-[340px] p-8 flex flex-col items-center"
+              style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)', border: '1.5px solid rgba(255,255,255,0.18)' }}
+            >
+              <h2 className="text-2xl font-bold mb-8 text-blue-900 drop-shadow">Apply for Leave</h2>
+              <label className="block text-gray-800 mb-2 font-semibold">Reason</label>
+              <select
+                value={leaveReason}
+                onChange={e => setLeaveReason(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-4 mt-4"
+              >
+                <option value="">Select reason</option>
+                {leaveTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+              <label className="block text-gray-800 mb-2 font-semibold mt-2">Number of Days</label>
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                value={leaveDays}
+                onChange={e => setLeaveDays(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-16"
+              />
+              <div className="flex-grow" />
+              <div className="flex gap-6 mb-8 justify-center">
+                <button
+                  className="px-6 py-2 rounded-lg backdrop-blur-md bg-white/30 border border-white/40 shadow-md text-gray-900 hover:bg-white/50 transition font-semibold"
+                  onClick={() => setShowLeaveModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-6 py-2 rounded-lg backdrop-blur-md bg-blue-400/30 border border-blue-200/40 shadow-md text-blue-900 font-semibold hover:bg-blue-400/50 hover:text-white transition"
+                  onClick={async () => {
+                    if (!leaveReason || !leaveDays) return;
+                    try {
+                      const res = await fetch('http://localhost:5000/api/leaves', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          user_id: userId,
+                          date: form.date,
+                          reason: leaveReason,
+                          days: leaveDays
+                        })
+                      });
+                      if (res.ok) {
+                        setLeaveMsg('Leave applied successfully!');
+                      } else {
+                        setLeaveMsg('Failed to apply for leave.');
+                      }
+                    } catch {
+                      setLeaveMsg('Failed to apply for leave.');
+                    }
+                    setShowLeaveModal(false);
+                    setTimeout(() => setLeaveMsg(''), 1500);
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
           </div>
         )}
         {/* Time-Off Modal */}
