@@ -47,21 +47,12 @@ router.put('/leave-requests/:id/approve', async (req, res) => {
     const leave_id = req.params.id;
     const { approver_id, remarks } = req.body;
     await db.query(
-      'UPDATE leave_requests SET status = "approved", updated_at = NOW() WHERE leave_id = ?',
-      [leave_id]
-    );
-    console.log('Inserting audit log for leave_id:', leave_id);
-    await db.query(
-      'INSERT INTO audit_log (leave_id, action_by, action_type, remarks) VALUES (?, ?, ?, ?)',
-      [leave_id, approver_id, 'approved', remarks || '']
+      'UPDATE leaves SET status = "approved", approver_id = ?, remarks = ?, updated_at = NOW() WHERE id = ?',
+      [approver_id, remarks || '', leave_id]
     );
     res.json({ message: 'Leave approved' });
   } catch (err) {
-    if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_ROW_IS_REFERENCED_2' || err.message.includes('a foreign key constraint fails')) {
-      res.status(400).json({ message: 'Invalid leave_id: no such leave request exists', error: err.message });
-    } else {
-      res.status(500).json({ message: 'Server error', error: err.message });
-    }
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
@@ -71,21 +62,12 @@ router.put('/leave-requests/:id/reject', async (req, res) => {
     const leave_id = req.params.id;
     const { approver_id, remarks } = req.body;
     await db.query(
-      'UPDATE leave_requests SET status = "rejected", updated_at = NOW() WHERE leave_id = ?',
-      [leave_id]
-    );
-    console.log('Inserting audit log for leave_id:', leave_id);
-    await db.query(
-      'INSERT INTO audit_log (leave_id, action_by, action_type, remarks) VALUES (?, ?, ?, ?)',
-      [leave_id, approver_id, 'rejected', remarks || '']
+      'UPDATE leaves SET status = "rejected", approver_id = ?, remarks = ?, updated_at = NOW() WHERE id = ?',
+      [approver_id, remarks || '', leave_id]
     );
     res.json({ message: 'Leave rejected' });
   } catch (err) {
-    if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_ROW_IS_REFERENCED_2' || err.message.includes('a foreign key constraint fails')) {
-      res.status(400).json({ message: 'Invalid leave_id: no such leave request exists', error: err.message });
-    } else {
-      res.status(500).json({ message: 'Server error', error: err.message });
-    }
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
@@ -95,21 +77,12 @@ router.put('/leave-requests/:id/escalate', async (req, res) => {
     const leave_id = req.params.id;
     const { new_approver_id, remarks } = req.body;
     await db.query(
-      'UPDATE leave_requests SET status = "escalated", approver_id = ?, escalated = TRUE, updated_at = NOW() WHERE leave_id = ?',
-      [new_approver_id, leave_id]
-    );
-    console.log('Inserting audit log for leave_id:', leave_id);
-    await db.query(
-      'INSERT INTO audit_log (leave_id, action_by, action_type, remarks) VALUES (?, ?, ?, ?)',
-      [leave_id, new_approver_id, 'escalated', remarks || '']
+      'UPDATE leaves SET status = "escalated", approver_id = ?, remarks = ?, escalated = 1, updated_at = NOW() WHERE id = ?',
+      [new_approver_id, remarks || '', leave_id]
     );
     res.json({ message: 'Leave escalated' });
   } catch (err) {
-    if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_ROW_IS_REFERENCED_2' || err.message.includes('a foreign key constraint fails')) {
-      res.status(400).json({ message: 'Invalid leave_id: no such leave request exists', error: err.message });
-    } else {
-      res.status(500).json({ message: 'Server error', error: err.message });
-    }
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
@@ -123,9 +96,10 @@ router.get('/leave-requests/:id/audit', async (req, res) => {
   res.json(rows);
 });
 
+// Get all leaves
 router.get('/leaves', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM leave_requests ORDER BY created_at DESC');
+    const [rows] = await db.query('SELECT * FROM leaves ORDER BY created_at DESC');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

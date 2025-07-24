@@ -97,14 +97,6 @@ export default function LeaveApprovalDashboard() {
     setTimeout(() => setMsg(''), 2000);
   };
 
-  const getTypeName = (id) => {
-    console.log('Looking for type:', id, 'in', leaveTypes);
-    const type = leaveTypes.find(
-      t => String(t.leave_type_id) === String(id) || String(t.id) === String(id)
-    );
-    return type ? type.name : id;
-  };
-
   return (
     <div className="max-w-6xl mx-auto mt-8">
       <h2 className="text-2xl font-bold mb-6 text-blue-800">All Leave Records</h2>
@@ -129,24 +121,25 @@ export default function LeaveApprovalDashboard() {
               </tr>
             ) : (
               requests.map((req, idx) => (
-                <tr key={req.leave_id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
+                <tr key={req.leave_id || req.id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
                   <td className="px-6 py-4 font-semibold text-blue-900">{userMap[req.user_id] || req.user_id}</td>
                   <td className="px-6 py-4 font-semibold text-purple-700">{req.reason || '-'}</td>
                   <td className="px-6 py-4">{(req.from_date || req.start_date)?.slice(0,10)}</td>
                   <td className="px-6 py-4">{(req.to_date || req.end_date)?.slice(0,10)}</td>
                   <td className="px-6 py-4">{req.remarks || req.comments || '-'}</td>
                   <td className="px-6 py-4">
-                    <span className={`px-4 py-2 rounded-full text-xs font-bold ${req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : req.status === 'approved' ? 'bg-green-100 text-green-800' : req.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700'}`}>{req.status}</span>
+                    <span className={`px-4 py-2 rounded-full text-xs font-bold ${
+                      req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      req.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>{req.status}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-nowrap justify-center gap-x-3">
-                      {req.status === 'pending' && (
-                        <>
-                          <button className="px-2 py-1 rounded bg-green-500 text-white font-semibold hover:bg-green-700 text-sm" onClick={() => handleAction(req, 'approve')}>Approve</button>
-                          <button className="px-2 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 text-sm" onClick={() => handleAction(req, 'reject')}>Reject</button>
-                          <button className="px-2 py-1 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-700 text-sm" onClick={() => handleAction(req, 'escalate')}>Escalate</button>
-                        </>
-                      )}
+                      <button className="px-2 py-1 rounded bg-green-500 text-white font-semibold hover:bg-green-700 text-sm" onClick={() => handleAction(req, 'approve')} disabled={req.status !== 'pending'}>Approve</button>
+                      <button className="px-2 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 text-sm" onClick={() => handleAction(req, 'reject')} disabled={req.status !== 'pending'}>Reject</button>
+                      <button className="px-2 py-1 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-700 text-sm" onClick={() => handleAction(req, 'escalate')} disabled={req.status !== 'pending'}>Escalate</button>
                     </div>
                   </td>
                 </tr>
