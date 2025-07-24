@@ -257,7 +257,7 @@ router.delete('/holidays/:id', async (req, res) => {
 // --- Leave Applications ---
 // Teachers can apply for leave
 router.post('/leaves', async (req, res) => {
-  const { user_id, start_date, end_date, reason, days } = req.body;
+  const { user_id, start_date, end_date, reason, days, remarks } = req.body;
   if (!user_id || !start_date || !end_date) {
     return res.status(400).json({ message: 'user_id, start_date, and end_date are required' });
   }
@@ -265,10 +265,30 @@ router.post('/leaves', async (req, res) => {
     const daysNum = days ? parseFloat(days) : 1;
     // For backward compatibility, set date = start_date
     await db.query(
-      'INSERT INTO leaves (user_id, start_date, end_date, date, reason, days, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [user_id, start_date, end_date, start_date, reason || '', daysNum, 'pending']
+      'INSERT INTO leaves (user_id, start_date, end_date, date, reason, days, status, remarks) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [user_id, start_date, end_date, start_date, reason || '', daysNum, 'pending', remarks || '']
     );
     res.json({ message: 'Leave applied successfully!' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+router.get('/leaves', async (req, res) => {
+  const { user_id } = req.query;
+  try {
+    let rows;
+    if (user_id) {
+      [rows] = await db.query(
+        'SELECT * FROM leaves WHERE user_id = ? ORDER BY start_date DESC',
+        [user_id]
+      );
+    } else {
+      [rows] = await db.query(
+        'SELECT * FROM leaves ORDER BY start_date DESC'
+      );
+    }
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

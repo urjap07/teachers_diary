@@ -29,6 +29,7 @@ export default function DiaryEntryForm({ userId }) {
   const [leaveDays, setLeaveDays] = useState(1);
   const [leaveStartDate, setLeaveStartDate] = useState('');
   const [leaveEndDate, setLeaveEndDate] = useState('');
+  const [leaveRemarks, setLeaveRemarks] = useState('');
   const leaveTypes = [
     { value: 'Casual Leave (CL)', label: 'Casual Leave (CL)' },
     { value: 'Sick Leave (SL)', label: 'Sick Leave (SL)' },
@@ -302,21 +303,28 @@ export default function DiaryEntryForm({ userId }) {
                 step="0.5"
                 value={leaveDays}
                 onChange={e => setLeaveDays(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-4"
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
               />
               <label className="block text-gray-800 mb-2 font-semibold mt-2">Start Date</label>
               <input
                 type="date"
                 value={leaveStartDate}
                 onChange={e => setLeaveStartDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-4"
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
               />
               <label className="block text-gray-800 mb-2 font-semibold mt-2">End Date</label>
               <input
                 type="date"
                 value={leaveEndDate}
                 onChange={e => setLeaveEndDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-16"
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
+              />
+              <label className="block text-gray-800 mb-2 font-semibold mt-2">Remarks</label>
+              <textarea
+                value={leaveRemarks}
+                onChange={e => setLeaveRemarks(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
+                placeholder="Enter remarks (optional)"
               />
               <div className="flex-grow" />
               <div className="flex gap-6 mb-8 justify-center">
@@ -339,7 +347,8 @@ export default function DiaryEntryForm({ userId }) {
                           start_date: leaveStartDate,
                           end_date: leaveEndDate,
                           reason: leaveReason,
-                          days: leaveDays
+                          days: leaveDays,
+                          remarks: leaveRemarks
                         })
                       });
                       if (res.ok) {

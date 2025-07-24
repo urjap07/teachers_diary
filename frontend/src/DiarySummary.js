@@ -44,7 +44,8 @@ export default function DiarySummary({ userId }) {
   const [entries, setEntries] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [timeOff, setTimeOff] = useState([]);
+  // Remove timeOff state
+  const [leaves, setLeaves] = useState([]); // Only use leaves
   // Remove showCoursesTaught, use expanded === 'courses'
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -58,12 +59,12 @@ export default function DiarySummary({ userId }) {
     const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     return ym === selectedMonth;
   });
-  const filteredTimeOff = timeOff.filter(t => {
-    if (!t.date) return false;
-    const d = new Date(t.date);
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return ym === selectedMonth;
-  });
+  // const filteredTimeOff = timeOff.filter(t => {
+  //   if (!t.date) return false;
+  //   const d = new Date(t.date);
+  //   const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  //   return ym === selectedMonth;
+  // });
 
   useEffect(() => {
     // Fetch only this teacher's diary entries
@@ -72,19 +73,20 @@ export default function DiarySummary({ userId }) {
       .then(data => {
         setEntries(Array.isArray(data) ? data : []);
       });
-    // Fetch time-off for this user (unchanged)
-    fetch(`http://localhost:5000/api/time-off?user_id=${Number(userId)}`)
+    // Remove time-off fetch
+    // Fetch leaves for this user
+    fetch(`http://localhost:5000/api/leaves?user_id=${Number(userId)}`)
       .then(res => res.json())
       .then(data => {
-        setTimeOff(Array.isArray(data) ? data : []);
+        setLeaves(Array.isArray(data) ? data : []);
       });
   }, [userId]);
 
 
   const totalLectures = entries.length;
   const totalHours = entries.reduce((sum, e) => sum + calculateDuration(e.start_time, e.end_time), 0);
-  // Show the real total time-off (sum of days)
-  const totalTimeOff = timeOff.reduce((sum, t) => sum + Number(t.days), 0);
+  // Show the real total time-off (sum of days from leaves only)
+  const totalTimeOff = leaves.reduce((sum, l) => sum + Number(l.days), 0);
 
   // Group by course_name, semester, topic_covered for lectures breakdown
   const topicGroups = {};
@@ -364,16 +366,16 @@ export default function DiarySummary({ userId }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {filteredTimeOff.length === 0 ? (
+              {leaves.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="text-center py-4 text-gray-400">No time-off records</td>
                 </tr>
               ) : (
-                filteredTimeOff.map((t, idx) => (
+                leaves.map((l, idx) => (
                   <tr key={idx}>
-                    <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{t.days}</td>
-                    <td className="px-4 py-2">{t.reason}</td>
+                    <td className="px-4 py-2">{new Date(l.date).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">{l.days}</td>
+                    <td className="px-4 py-2">{l.reason}</td>
                   </tr>
                 ))
               )}

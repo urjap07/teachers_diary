@@ -1,5 +1,22 @@
 import React, { useState, useEffect } from 'react';
 
+function ConfirmDeleteHolidayModal({ holiday, onClose, onConfirm }) {
+  if (!holiday) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Holiday</h2>
+        <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{holiday.name}</span>?</p>
+        <div className="flex gap-4">
+          <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
+          <button onClick={onConfirm} className="px-6 py-2 rounded-xl border border-red-500 bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PublicHolidaysPanel() {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -9,6 +26,8 @@ export default function PublicHolidaysPanel() {
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({ date: '', name: '' });
   const [msg, setMsg] = useState('');
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteHoliday, setDeleteHoliday] = useState(null);
 
   const fetchHolidays = async () => {
     setLoading(true);
@@ -77,10 +96,13 @@ export default function PublicHolidaysPanel() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this holiday?')) return;
+    setDeleteHoliday(holidays.find(h => h.id === id));
+    setShowDelete(true);
+  };
+  const confirmDelete = async () => {
     setMsg('');
     try {
-      const res = await fetch(`http://localhost:5000/api/holidays/${id}`, { method: 'DELETE' });
+      const res = await fetch(`http://localhost:5000/api/holidays/${deleteHoliday.id}`, { method: 'DELETE' });
       const contentType = res.headers.get('content-type');
       if (res.ok && contentType && contentType.includes('application/json')) {
         setMsg('Holiday deleted successfully!');
@@ -93,13 +115,15 @@ export default function PublicHolidaysPanel() {
     } catch {
       setMsg('Failed to delete holiday');
     }
+    setShowDelete(false);
+    setDeleteHoliday(null);
   };
 
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold">Public Holidays</h2>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={() => { setShowAdd(true); setForm({ date: '', name: '' }); setMsg(''); }}>Add Holiday</button>
+        <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => { setShowAdd(true); setForm({ date: '', name: '' }); setMsg(''); }}>+ Add Holiday</button>
       </div>
       {loading ? <p>Loading...</p> : error ? <p className="text-red-500">{error}</p> : (
         <table className="w-full bg-white rounded shadow">
@@ -167,6 +191,13 @@ export default function PublicHolidaysPanel() {
             </div>
           </div>
         </div>
+      )}
+      {showDelete && deleteHoliday && (
+        <ConfirmDeleteHolidayModal
+          holiday={deleteHoliday}
+          onClose={() => { setShowDelete(false); setDeleteHoliday(null); }}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   );

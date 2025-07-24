@@ -321,7 +321,7 @@ export default function AdminDashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [entries, setEntries] = useState([]);
-  const [timeOff, setTimeOff] = useState([]);
+  const [leaves, setLeaves] = useState([]); // Use leaves instead of timeOff
   const [expandedCourse, setExpandedCourse] = useState(null);
   const [showCourseSummary, setShowCourseSummary] = useState(false); // NEW
   const [showTimeOffAnalytics, setShowTimeOffAnalytics] = useState(false); // NEW
@@ -388,9 +388,9 @@ export default function AdminDashboard() {
     fetch(url)
       .then(res => res.json())
       .then(data => setEntries(Array.isArray(data) ? data : []));
-    fetch('http://localhost:5000/api/time-off')
+    fetch('http://localhost:5000/api/leaves')
       .then(res => res.json())
-      .then(data => setTimeOff(Array.isArray(data) ? data : []));
+      .then(data => setLeaves(Array.isArray(data) ? data : []));
     fetchTeachers();
   }, [startDate, endDate]);
 
@@ -398,7 +398,16 @@ export default function AdminDashboard() {
   };
 
   const totalLectures = entries.length;
-  const totalTimeOff = timeOff.reduce((sum, t) => sum + Number(t.days), 0);
+  // Move this up before totalTimeOff is used
+  // Use the 'date' field for filtering leaves by month
+  const filteredLeaves = leaves.filter(l => {
+    if (!l.date) return false;
+    const d = new Date(l.date);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return ym === selectedTimeOffMonth;
+  });
+  // For the stat card:
+  const totalTimeOff = filteredLeaves.reduce((sum, l) => sum + Number(l.days), 0);
   // Filter entries by selected month for course summary
   const filteredEntries = entries.filter(e => {
     if (!e.date) return false;
@@ -449,14 +458,6 @@ export default function AdminDashboard() {
     })
   );
 
-  // Filter timeOff by selected month
-  const filteredTimeOff = timeOff.filter(t => {
-    if (!t.date) return false;
-    const d = new Date(t.date);
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return ym === selectedTimeOffMonth;
-  });
-
   // Build a userId-to-name map from entries
   const userIdToName = {};
   entries.forEach(e => {
@@ -465,18 +466,18 @@ export default function AdminDashboard() {
     }
   });
 
-  // Group filtered time-off by teacher
-  const timeOffByTeacher = {};
-  filteredTimeOff.forEach(t => {
-    if (!timeOffByTeacher[t.user_id]) {
-      timeOffByTeacher[t.user_id] = [];
+  // Group filtered leaves by teacher
+  const leavesByTeacher = {};
+  filteredLeaves.forEach(l => {
+    if (!leavesByTeacher[l.user_id]) {
+      leavesByTeacher[l.user_id] = [];
     }
-    timeOffByTeacher[t.user_id].push(t);
+    leavesByTeacher[l.user_id].push(l);
   });
 
   // Prepare analytics rows
-  const timeOffAnalyticsRows = Object.entries(timeOffByTeacher).map(([userId, offs]) => {
-    const totalDays = offs.reduce((sum, t) => sum + Number(t.days), 0);
+  const timeOffAnalyticsRows = Object.entries(leavesByTeacher).map(([userId, offs]) => {
+    const totalDays = offs.reduce((sum, l) => sum + Number(l.days), 0);
     return {
       userId,
       teacherName: userIdToName[userId] || userId,
@@ -930,22 +931,20 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {timeOffAnalyticsRows.length === 0 ? (
+                    {filteredLeaves.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-4 text-gray-400">No time-off records</td></tr>
                     ) : (
-                      timeOffAnalyticsRows
-                        .filter(row => !selectedTeacher || row.teacherName === selectedTeacher)
-                        .flatMap((row, idx) =>
-                          row.offs.map((t, i) => (
-                            <tr key={row.userId + '-' + i}>
-                              <td className="px-4 py-2 font-semibold text-blue-700">{row.teacherName}</td>
-                              <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
-                              <td className="px-4 py-2">{getMonthName(t.date)}</td>
-                              <td className="px-4 py-2">{t.days}</td>
-                              <td className="px-4 py-2">{t.reason || 'No reason'}</td>
-                            </tr>
-                          ))
-                        )
+                      filteredLeaves
+                        .filter(l => !selectedTeacher || userIdToName[l.user_id] === selectedTeacher)
+                        .map((l, idx) => (
+                          <tr key={l.id}>
+                            <td className="px-4 py-2 font-semibold text-blue-700">{userIdToName[l.user_id] || l.user_id}</td>
+                            <td className="px-4 py-2">{new Date(l.date).toLocaleDateString()}</td>
+                            <td className="px-4 py-2">{getMonthName(l.date)}</td>
+                            <td className="px-4 py-2">{l.days}</td>
+                            <td className="px-4 py-2">{l.reason || 'No reason'}</td>
+                          </tr>
+                        ))
                     )}
                   </tbody>
                 </table>
