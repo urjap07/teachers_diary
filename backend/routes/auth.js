@@ -36,23 +36,37 @@ router.post('/login', async (req, res) => {
 
 // Add a new teacher (admin only)
 router.post('/add-teacher', async (req, res) => {
-  const { name, email, mobile, password } = req.body;
-  if (!name || !email || !mobile || !password) {
+  const { name, email, mobile, password, courseIds, pDay } = req.body;
+  console.log('Received courseIds:', courseIds, 'pDay:', pDay);
+  if (!name || !email || !mobile || !password || !Array.isArray(courseIds) || typeof pDay === 'undefined') {
     return res.status(400).json({ message: 'All fields are required' });
   }
+  const conn = await db.getConnection();
   try {
+    await conn.beginTransaction();
     // Check if email or mobile already exists
-    const [existing] = await db.query('SELECT id FROM users WHERE email = ? OR mobile = ? LIMIT 1', [email, mobile]);
+    const [existing] = await conn.query('SELECT id FROM users WHERE email = ? OR mobile = ? LIMIT 1', [email, mobile]);
     if (existing.length > 0) {
+      conn.release();
       return res.status(409).json({ message: 'A user with this email or mobile already exists' });
     }
-    // Insert new teacher (plain text password for now)
-    await db.query(
-      'INSERT INTO users (name, email, mobile, password_hash, role) VALUES (?, ?, ?, ?, ?)',
-      [name, email, mobile, password, 'teacher']
+    // Insert new teacher with p_day
+    const [result] = await conn.query(
+      'INSERT INTO users (name, email, mobile, password_hash, role, p_day) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, email, mobile, password, 'teacher', parseInt(pDay, 10)]
     );
-    res.json({ message: 'Teacher added successfully' });
+    const teacherId = result.insertId;
+    // Assign courses
+    if (courseIds.length > 0) {
+      const values = courseIds.map(cid => [teacherId, cid]);
+      await conn.query('INSERT INTO teacher_courses (teacher_id, course_id) VALUES ?', [values]);
+    }
+    await conn.commit();
+    conn.release();
+    res.json({ message: 'Teacher added successfully!' });
   } catch (err) {
+    await conn.rollback();
+    conn.release();
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });

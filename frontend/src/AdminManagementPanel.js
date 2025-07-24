@@ -107,12 +107,7 @@ function AddTeacherModal({ onClose, onSubmit, courses }) {
   const [errors, setErrors] = useState({});
 
   const handleChange = e => {
-    const { name, value, type, options } = e.target;
-    if (name === 'courseIds') {
-      // For checkboxes, handle manually
-      return;
-    }
-    setForm(f => ({ ...f, [name]: value }));
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleCourseCheckbox = id => {
@@ -141,7 +136,13 @@ function AddTeacherModal({ onClose, onSubmit, courses }) {
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length === 0) {
-      onSubmit(form);
+      // Convert courseIds to array of numbers and pDay to integer
+      const payload = {
+        ...form,
+        courseIds: form.courseIds.map(cid => Number(cid)),
+        pDay: parseInt(form.pDay, 10)
+      };
+      onSubmit(payload);
     }
   };
 
@@ -337,18 +338,16 @@ function AddCourseModal({ onClose, onSubmit }) {
 
 function AssignCoursesModal({ teacher, onClose, onSubmit }) {
   const [coursesWithSubjects, setCoursesWithSubjects] = useState([]);
-  const [selected, setSelected] = useState([]); // [{course_id, subject_id}]
+  const [selectedSubjects, setSelectedSubjects] = useState([]); // [{course_id, subject_id}]
+  const [selectedCourses, setSelectedCourses] = useState([]); // [course_id]
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all courses and their subjects
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      // Fetch all courses
       const coursesRes = await fetch('http://localhost:5000/api/courses');
       const courses = await coursesRes.json();
-      // For each course, fetch its subjects
       const coursesWithSubs = await Promise.all(courses.map(async (course) => {
         const subsRes = await fetch(`http://localhost:5000/api/subjects?course_id=${course.id}`);
         const subjects = await subsRes.json();
@@ -358,27 +357,53 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
       // Fetch assigned subjects for this teacher
       const assignedRes = await fetch(`http://localhost:5000/api/teacher-subjects?teacher_id=${teacher.id}`);
       const assignedList = await assignedRes.json();
-      setSelected(assignedList.map(a => ({ course_id: a.course_id, subject_id: a.subject_id })));
+      setSelectedSubjects(assignedList.map(a => ({ course_id: a.course_id, subject_id: a.subject_id })));
+      // Fetch assigned courses for this teacher
+      const assignedCoursesRes = await fetch(`http://localhost:5000/api/teacher-courses?teacher_id=${teacher.id}`);
+      const assignedCourses = await assignedCoursesRes.json();
+      setSelectedCourses(assignedCourses.map(cid => String(cid)));
       setLoading(false);
     }
     fetchData();
   }, [teacher.id]);
 
-  const isChecked = (course_id, subject_id) => selected.some(sel => sel.course_id === course_id && sel.subject_id === subject_id);
+  const isSubjectChecked = (course_id, subject_id) => selectedSubjects.some(sel => sel.course_id === course_id && sel.subject_id === subject_id);
+  const isCourseChecked = (course_id) => selectedCourses.includes(String(course_id));
 
-  const handleToggle = (course_id, subject_id) => {
-    setSelected(sel =>
-      isChecked(course_id, subject_id)
+  const handleCourseToggle = (course_id) => {
+    setSelectedCourses(prev =>
+      isCourseChecked(course_id)
+        ? prev.filter(cid => cid !== String(course_id))
+        : [...prev, String(course_id)]
+    );
+  };
+
+  const handleSubjectToggle = (course_id, subject_id) => {
+    setSelectedSubjects(sel =>
+      isSubjectChecked(course_id, subject_id)
         ? sel.filter(s => !(s.course_id === course_id && s.subject_id === subject_id))
         : [...sel, { course_id, subject_id }]
     );
+    // When a subject is checked, ensure the course is also checked
+    if (!isCourseChecked(course_id)) {
+      setSelectedCourses(prev => [...prev, String(course_id)]);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await onSubmit(selected);
+    // Ensure all courses with at least one subject checked are included in selectedCourses
+    const allCourseIds = Array.from(new Set([
+      ...selectedCourses,
+      ...selectedSubjects.map(s => String(s.course_id))
+    ]));
+    await onSubmit({
+      course_ids: allCourseIds,
+      subject_assignments: selectedSubjects
+    });
     setSaving(false);
+    onClose();
   };
 
   return (
@@ -391,7 +416,7 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
         >
           &times;
         </button>
-        <h2 className="text-2xl font-bold text-blue-800 mb-6">Assign Subjects to {teacher.name}</h2>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Assign Courses & Subjects to {teacher.name}</h2>
         {loading ? (
           <div className="text-blue-700 font-semibold py-8">Loading...</div>
         ) : (
@@ -403,7 +428,14 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
                 coursesWithSubjects.map(course => (
                   <div key={course.id} className="bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm">
                     <div className="font-bold text-blue-900 text-lg mb-2 flex items-center gap-2">
-                      {course.name}
+                      <input
+                        type="checkbox"
+                        checked={isCourseChecked(course.id)}
+                        onChange={() => handleCourseToggle(course.id)}
+                        className="accent-blue-600 scale-110 mr-2"
+                        id={`course_head_${course.id}`}
+                      />
+                      <label htmlFor={`course_head_${course.id}`}>{course.name}</label>
                       <span className="text-xs text-gray-500 font-normal">{course.code}</span>
                     </div>
                     {course.subjects.length === 0 ? (
@@ -414,7 +446,7 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
                           <label
                             key={subject.id}
                             className={`flex items-center gap-2 px-3 py-2 rounded-lg transition
-                              ${isChecked(course.id, subject.id)
+                              ${isSubjectChecked(course.id, subject.id)
                                 ? 'bg-blue-100 border border-blue-400'
                                 : 'bg-white border border-gray-200 hover:bg-blue-50'}
                             `}
@@ -422,8 +454,8 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
                           >
                             <input
                               type="checkbox"
-                              checked={isChecked(course.id, subject.id)}
-                              onChange={() => handleToggle(course.id, subject.id)}
+                              checked={isSubjectChecked(course.id, subject.id)}
+                              onChange={() => handleSubjectToggle(course.id, subject.id)}
                               className="accent-blue-600"
                             />
                             <span className="font-medium text-blue-800">{subject.name}</span>
@@ -441,7 +473,7 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
               className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/90 text-white font-bold shadow-lg hover:bg-blue-700/90 transition mt-2"
               disabled={saving}
             >
-              {saving ? 'Saving...' : 'Assign Subjects'}
+              {saving ? 'Saving...' : 'Assign Courses & Subjects'}
             </button>
           </form>
         )}
@@ -922,10 +954,6 @@ export default function AdminManagementPanel() {
   const [deleteTopic, setDeleteTopic] = useState(null);
   const [isDeletingTopic, setIsDeletingTopic] = useState(false);
   const [subtopicModalTopic, setSubtopicModalTopic] = useState(null);
-  const [allTeachers, setAllTeachers] = useState([]);
-  const [publicHoliday, setPublicHoliday] = useState({ teacherIds: [], date: '', days: 1, reason: '' });
-  const [assigningPublicHoliday, setAssigningPublicHoliday] = useState(false);
-  const [selectAllTeachers, setSelectAllTeachers] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -1031,11 +1059,6 @@ export default function AdminManagementPanel() {
           });
       }
     }
-    if (activeTab === 'holidays') {
-      fetch('http://localhost:5000/api/teachers')
-        .then(res => res.json())
-        .then(data => setAllTeachers(Array.isArray(data) ? data : []));
-    }
   }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject]);
 
   // Filter teachers as the user types
@@ -1068,7 +1091,6 @@ export default function AdminManagementPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
-    const data = await res.json();
     if (res.ok) {
       alert('Teacher updated successfully!');
       setEditTeacher(null);
@@ -1082,13 +1104,12 @@ export default function AdminManagementPanel() {
           setFilteredTeachers(arr);
         });
     } else {
-      alert(data.message || 'Failed to update teacher');
+      alert('Failed to update teacher');
     }
   };
 
   const handleDeleteTeacher = async (id) => {
     const res = await fetch(`http://localhost:5000/api/teacher/${id}`, { method: 'DELETE' });
-    const data = await res.json();
     if (res.ok) {
       alert('Teacher deleted successfully!');
       setDeleteTeacher(null);
@@ -1102,7 +1123,7 @@ export default function AdminManagementPanel() {
           setFilteredTeachers(arr);
         });
     } else {
-      alert(data.message || 'Failed to delete teacher');
+      alert('Failed to delete teacher');
     }
   };
 
@@ -1112,7 +1133,6 @@ export default function AdminManagementPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: teacher.active ? 0 : 1 }),
     });
-    const data = await res.json();
     if (res.ok) {
       alert('Teacher status updated');
       // Refresh teachers list
@@ -1124,7 +1144,7 @@ export default function AdminManagementPanel() {
           setFilteredTeachers(arr);
         });
     } else {
-      alert(data.message || 'Failed to update status');
+      alert('Failed to update status');
     }
   };
 
@@ -1135,7 +1155,6 @@ export default function AdminManagementPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
       if (res.ok) {
         alert('Teacher added successfully!');
         setShowAddTeacher(false);
@@ -1148,7 +1167,7 @@ export default function AdminManagementPanel() {
             setFilteredTeachers(arr);
           });
       } else {
-        alert(data.message || 'Failed to add teacher');
+        alert('Failed to add teacher');
       }
     } catch (err) {
       alert('Server error');
@@ -1161,7 +1180,6 @@ export default function AdminManagementPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
-    const data = await res.json();
     if (res.ok) {
       alert('Course updated successfully!');
       setEditCourse(null);
@@ -1171,13 +1189,12 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setCourses(Array.isArray(data) ? data : []));
     } else {
-      alert(data.message || 'Failed to update course');
+      alert('Failed to update course');
     }
   };
 
   const handleDeleteCourse = async (id) => {
     const res = await fetch(`http://localhost:5000/api/courses/${id}`, { method: 'DELETE' });
-    const data = await res.json();
     if (res.ok) {
       alert('Course deleted successfully!');
       setDeleteCourse(null);
@@ -1187,7 +1204,7 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setCourses(Array.isArray(data) ? data : []));
     } else {
-      alert(data.message || 'Failed to delete course');
+      alert('Failed to delete course');
     }
   };
 
@@ -1198,7 +1215,6 @@ export default function AdminManagementPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
       if (res.ok) {
         alert('Course added successfully!');
         setShowAddCourse(false);
@@ -1207,7 +1223,7 @@ export default function AdminManagementPanel() {
           .then(res => res.json())
           .then(data => setCourses(Array.isArray(data) ? data : []));
       } else {
-        alert(data.message || 'Failed to add course');
+        alert('Failed to add course');
       }
     } catch (err) {
       alert('Server error');
@@ -1219,18 +1235,24 @@ export default function AdminManagementPanel() {
     setAssignCoursesModalOpen(true);
   };
 
-  const handleAssignCourses = async (selectedAssignments) => {
-    // selectedAssignments is an array of { course_id, subject_id }
-    await fetch('http://localhost:5000/api/teacher-subjects/assign', {
+  const handleAssignCourses = async ({ course_ids, subject_assignments }) => {
+    const res = await fetch('http://localhost:5000/api/teacher-courses/assign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         teacher_id: assignCoursesTeacher.id,
-        assignments: selectedAssignments
+        course_ids,
+        subject_assignments
       }),
     });
+    const data = await res.json();
     setAssignCoursesModalOpen(false);
     setAssignCoursesTeacher(null);
+    if (res.ok) {
+      alert('Courses and subjects assigned successfully!');
+    } else {
+      alert(data.message || 'Failed to assign courses/subjects');
+    }
   };
 
   const handleEditSubject = async (form) => {
@@ -1239,7 +1261,6 @@ export default function AdminManagementPanel() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
     });
-    const data = await res.json();
     if (res.ok) {
       alert('Subject updated successfully!');
       setEditSubject(null);
@@ -1254,7 +1275,7 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setSubjects(Array.isArray(data) ? data : []));
     } else {
-      alert(data.message || 'Failed to update subject');
+      alert('Failed to update subject');
     }
   };
 
@@ -1276,6 +1297,7 @@ export default function AdminManagementPanel() {
       fetch(url)
         .then(res => res.json())
         .then(data => setSubjects(Array.isArray(data) ? data : []));
+      alert('Subject added successfully!');
     } else {
       alert('Failed to add subject');
     }
@@ -1367,55 +1389,6 @@ export default function AdminManagementPanel() {
     setDeleteTopic(null);
     setIsDeletingTopic(false);
   };
-
-  const handlePublicHolidayChange = e => {
-    const { name, value, options } = e.target;
-    if (name === 'teacherIds') {
-      // Multi-select
-      const selected = Array.from(options).filter(o => o.selected).map(o => o.value);
-      setPublicHoliday(ph => ({ ...ph, teacherIds: selected }));
-    } else {
-      setPublicHoliday(ph => ({ ...ph, [name]: value }));
-    }
-  };
-
-  const handleAssignPublicHoliday = async e => {
-    e.preventDefault();
-    setAssigningPublicHoliday(true);
-    const teacherIds = publicHoliday.teacherIds.length > 0 ? publicHoliday.teacherIds : allTeachers.map(t => t.id);
-    const promises = teacherIds.map(id =>
-      fetch('http://localhost:5000/api/time-off', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: id, date: publicHoliday.date, days: publicHoliday.days, reason: publicHoliday.reason })
-      })
-    );
-    await Promise.all(promises);
-    setAssigningPublicHoliday(false);
-    setPublicHoliday({ teacherIds: [], date: '', days: 1, reason: '' });
-    alert('Public holiday assigned successfully!');
-  };
-
-  const handleTeacherCheckboxChange = (id) => {
-    setPublicHoliday(ph => {
-      const teacherIds = ph.teacherIds.includes(id)
-        ? ph.teacherIds.filter(tid => tid !== id)
-        : [...ph.teacherIds, id];
-      return { ...ph, teacherIds };
-    });
-  };
-
-  const handleSelectAllTeachers = () => {
-    setSelectAllTeachers(prev => {
-      const newVal = !prev;
-      setPublicHoliday(ph => ({
-        ...ph,
-        teacherIds: newVal ? allTeachers.map(t => t.id) : []
-      }));
-      return newVal;
-    });
-  };
-
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
