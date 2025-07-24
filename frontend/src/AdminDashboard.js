@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 
 function calculateDuration(start, end) {
   if (!start || !end) return 0;
@@ -376,6 +377,7 @@ export default function AdminDashboard() {
   const diaryLogRowRefs = useRef([]);
   const teachersHeadingRef = useRef(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showApprovalDashboard, setShowApprovalDashboard] = useState(false);
 
   useEffect(() => {
     let url = 'http://localhost:5000/api/diary-entries';
@@ -736,6 +738,12 @@ export default function AdminDashboard() {
             className="px-6 py-2 rounded-xl border border-white/30 bg-blue-600/80 text-white font-semibold shadow-lg backdrop-blur-xl hover:bg-blue-700/90 transition"
             style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
             Export to Excel
+          </button>
+          <button
+            onClick={() => setShowApprovalDashboard(s => !s)}
+            className="px-6 py-2 rounded-xl border border-white/30 bg-yellow-600/80 text-white font-semibold shadow-lg hover:bg-yellow-700/90 transition"
+            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
+            {showApprovalDashboard ? 'Hide' : 'Show'} Leave Approval Dashboard
           </button>
           <button
             onClick={handleLogout}
@@ -1107,6 +1115,9 @@ export default function AdminDashboard() {
         {deleteTeacher && <ConfirmDeleteModal teacher={deleteTeacher} onClose={() => { setDeleteTeacher(null); }} onConfirm={() => handleDeleteTeacher(deleteTeacher.id)} containerRef={containerRef} teachersHeadingRef={teachersHeadingRef} />}
         {showExportModal && (
           <ExportExcelModal onClose={() => setShowExportModal(false)} onExport={handleExport} />
+        )}
+        {showApprovalDashboard && (
+          <LeaveApprovalDashboard approverId={user.id} />
         )}
       </div>
     </div>

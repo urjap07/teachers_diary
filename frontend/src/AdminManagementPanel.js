@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import TimeOffForm from './TimeOffForm';
 import PublicHolidaysPanel from './PublicHolidaysPanel';
+import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 
 const TABS = [
   { key: 'teachers', label: 'Teachers' },
@@ -8,6 +9,7 @@ const TABS = [
   { key: 'subjects', label: 'Subjects' },
   { key: 'topics', label: 'Topics' },
   { key: 'holidays', label: 'Public Holidays' },
+  { key: 'leaves', label: 'Leaves' },
 ];
 
 function EditTeacherModal({ teacher, onClose, onSubmit }) {
@@ -955,6 +957,8 @@ export default function AdminManagementPanel() {
   const [isDeletingTopic, setIsDeletingTopic] = useState(false);
   const [subtopicModalTopic, setSubtopicModalTopic] = useState(null);
 
+  const user = JSON.parse(localStorage.getItem('user'));
+
   useEffect(() => {
     if (activeTab === 'teachers') {
       fetch('http://localhost:5000/api/teachers')
@@ -1059,6 +1063,16 @@ export default function AdminManagementPanel() {
           });
       }
     }
+    // Fetch all teachers/users for mapping user_id to name
+    fetch('http://localhost:5000/api/teachers')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          const map = {};
+          data.forEach(u => { map[u.id] = u.name; });
+          
+        }
+      });
   }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject]);
 
   // Filter teachers as the user types
@@ -1640,6 +1654,12 @@ export default function AdminManagementPanel() {
         {activeTab === 'holidays' && (
           <section>
             <PublicHolidaysPanel />
+          </section>
+        )}
+        {activeTab === 'leaves' && (
+          <section>
+            {/* Only show the approval dashboard for supervisors/HR in the Leaves tab */}
+            <LeaveApprovalDashboard approverId={user.id} />
           </section>
         )}
       </main>
