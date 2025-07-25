@@ -740,12 +740,6 @@ export default function AdminDashboard() {
             Export to Excel
           </button>
           <button
-            onClick={() => setShowApprovalDashboard(s => !s)}
-            className="px-6 py-2 rounded-xl border border-white/30 bg-yellow-600/80 text-white font-semibold shadow-lg hover:bg-yellow-700/90 transition"
-            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
-            {showApprovalDashboard ? 'Hide' : 'Show'} Leave Approval Dashboard
-          </button>
-          <button
             onClick={handleLogout}
             className="px-6 py-2 rounded-xl border border-white/30 bg-white/30 text-blue-800 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/50 hover:text-blue-900 transition"
             style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>

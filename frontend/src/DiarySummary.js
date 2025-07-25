@@ -51,6 +51,7 @@ export default function DiarySummary({ userId }) {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [leaveBalances, setLeaveBalances] = useState([]);
 
   // Filter entries and timeOff by selected month
   const filteredEntries = entries.filter(e => {
@@ -80,6 +81,13 @@ export default function DiarySummary({ userId }) {
       .then(data => {
         setLeaves(Array.isArray(data) ? data : []);
       });
+    // Fetch leave balances for admin
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user?.role === 'admin') {
+      fetch(`http://localhost:5000/api/leave-balances?user_id=${userId}`)
+        .then(res => res.json())
+        .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+    }
   }, [userId]);
 
 
@@ -149,6 +157,34 @@ export default function DiarySummary({ userId }) {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {/* Leave Balances Table for Admin */}
+      {userRole === 'admin' && leaveBalances.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
+          <h3 className="font-semibold text-blue-700 mb-2">Leave Balances ({new Date().getFullYear()})</h3>
+          <table className="min-w-full divide-y divide-gray-200 mb-2">
+            <thead className="bg-blue-100">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {leaveBalances.map((b, idx) => (
+                <tr key={idx}>
+                  <td className="px-4 py-2 font-semibold text-blue-800">{b.leave_type_name}</td>
+                  <td className="px-4 py-2">{b.opening_balance}</td>
+                  <td className="px-4 py-2">{b.used}</td>
+                  <td className="px-4 py-2">{b.adjustments}</td>
+                  <td className="px-4 py-2 font-bold text-green-700">{(parseFloat(b.opening_balance) - parseFloat(b.used) + parseFloat(b.adjustments)).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row gap-4 mb-8">
         <StatCard title="Total Lectures" value={totalLectures} onClick={showLectures} active={expanded === 'lectures'} />
         <StatCard title="Total Hours" value={totalHours.toFixed(2)} onClick={showHours} active={expanded === 'hours'} />

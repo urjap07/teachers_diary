@@ -80,6 +80,15 @@ export default function LeaveApprovalDashboard() {
     if (modal.action === 'escalate') {
       body = { new_approver_id: 2, remarks }; // TODO: pick next authority
     }
+    // Toggle logic: if already in target status, set to pending
+    const currentStatus = modal.leave.status;
+    if (
+      (modal.action === 'approve' && currentStatus === 'approved') ||
+      (modal.action === 'reject' && currentStatus === 'rejected') ||
+      (modal.action === 'escalate' && currentStatus === 'escalated')
+    ) {
+      body.force_pending = true;
+    }
     try {
       const res = await fetch(url, {
         method,
@@ -132,14 +141,23 @@ export default function LeaveApprovalDashboard() {
                       req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                       req.status === 'approved' ? 'bg-green-100 text-green-800' :
                       req.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      req.status === 'escalated' ? 'bg-blue-100 text-blue-800' :
                       'bg-gray-100 text-gray-700'
-                    }`}>{req.status}</span>
+                    }`}>
+                      {req.status === 'escalated' ? 'escalated' : req.status}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-nowrap justify-center gap-x-3">
-                      <button className="px-2 py-1 rounded bg-green-500 text-white font-semibold hover:bg-green-700 text-sm" onClick={() => handleAction(req, 'approve')} disabled={req.status !== 'pending'}>Approve</button>
-                      <button className="px-2 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 text-sm" onClick={() => handleAction(req, 'reject')} disabled={req.status !== 'pending'}>Reject</button>
-                      <button className="px-2 py-1 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-700 text-sm" onClick={() => handleAction(req, 'escalate')} disabled={req.status !== 'pending'}>Escalate</button>
+                      <button className="px-2 py-1 rounded bg-green-500 text-white font-semibold hover:bg-green-700 text-sm" onClick={() => handleAction(req, 'approve')}>
+                        Approve
+                      </button>
+                      <button className="px-2 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 text-sm" onClick={() => handleAction(req, 'reject')}>
+                        Reject
+                      </button>
+                      <button className="px-2 py-1 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-700 text-sm" onClick={() => handleAction(req, 'escalate')}>
+                        Escalate
+                      </button>
                     </div>
                   </td>
                 </tr>

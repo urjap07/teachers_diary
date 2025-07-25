@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import TimeOffForm from './TimeOffForm';
 import PublicHolidaysPanel from './PublicHolidaysPanel';
 import LeaveApprovalDashboard from './LeaveApprovalDashboard';
+import ExcelJS from 'exceljs';
 
 const TABS = [
   { key: 'teachers', label: 'Teachers' },
@@ -956,8 +957,20 @@ export default function AdminManagementPanel() {
   const [deleteTopic, setDeleteTopic] = useState(null);
   const [isDeletingTopic, setIsDeletingTopic] = useState(false);
   const [subtopicModalTopic, setSubtopicModalTopic] = useState(null);
-
   const user = JSON.parse(localStorage.getItem('user'));
+  const [leaveBalances, setLeaveBalances] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
+  const [teacherOptions, setTeacherOptions] = useState([]);
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const filteredTeacherOptions = teacherOptions.filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase()));
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [adjustModal, setAdjustModal] = useState({ open: false, row: null });
+  const [adjustAmount, setAdjustAmount] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [adjustLoading, setAdjustLoading] = useState(false);
+  const [adjustError, setAdjustError] = useState('');
+  const [showLeaveBalances, setShowLeaveBalances] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -1073,7 +1086,37 @@ export default function AdminManagementPanel() {
           
         }
       });
+    // Fetch leave balances for admin
+    if (user?.role === 'admin') {
+      fetch(`http://localhost:5000/api/leave-balances?user_id=${user.id}`)
+        .then(res => res.json())
+        .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+      // Fetch all leave types
+      fetch('http://localhost:5000/api/leave-types')
+        .then(res => res.json())
+        .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+    }
   }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject]);
+
+  useEffect(() => {
+    // Fetch all teachers for the dropdown
+    fetch('http://localhost:5000/api/teachers')
+      .then(res => res.json())
+      .then(data => setTeacherOptions(Array.isArray(data) ? data : []));
+  }, []);
+
+  useEffect(() => {
+    // Fetch leave balances for selected teacher or admin
+    const userIdToFetch = selectedTeacher ? selectedTeacher.id : user.id;
+    if (user?.role === 'admin') {
+      fetch(`http://localhost:5000/api/leave-balances?user_id=${userIdToFetch}`)
+        .then(res => res.json())
+        .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+      fetch('http://localhost:5000/api/leave-types')
+        .then(res => res.json())
+        .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+    }
+  }, [activeTab, selectedTeacher]);
 
   // Filter teachers as the user types
   useEffect(() => {
@@ -1404,6 +1447,90 @@ export default function AdminManagementPanel() {
     setIsDeletingTopic(false);
   };
 
+  // Merge leave types with balances so all types are shown, but exclude 'Other'
+  const mergedBalances = leaveTypes
+    .filter(type => [
+      'Casual Leave (CL)',
+      'Sick Leave (SL)',
+      'Earned Leave (EL)',
+      'Leave Without Pay (LWP)',
+      'Maternity Leave (ML)'
+    ].includes(type.name))
+    .map(type => {
+      const bal = leaveBalances.find(b => b.leave_type_id === type.leave_type_id);
+      let available = '-';
+      let opening_balance = '-';
+      let used = '-';
+      let adjustments = '-';
+
+      if (bal) {
+        opening_balance = bal.opening_balance;
+        used = bal.used;
+        adjustments = bal.adjustments;
+        const usedNum = parseFloat(bal.used) || 0;
+        const adjNum = parseFloat(bal.adjustments) || 0;
+        const usedFalsy = !bal.used || bal.used === '0' || bal.used === '0.00';
+        const adjFalsy = !bal.adjustments || bal.adjustments === '0' || bal.adjustments === '0.00';
+        if (
+          (type.name === 'Leave Without Pay (LWP)' || type.name === 'Maternity Leave (ML)') &&
+          (usedFalsy && adjFalsy)
+        ) {
+          available = bal.opening_balance;
+        } else {
+          available = (parseFloat(bal.opening_balance) - usedNum + adjNum).toFixed(2);
+        }
+      } else if (type.name === 'Leave Without Pay (LWP)') {
+        opening_balance = 999;
+        available = 999;
+      } else if (type.name === 'Maternity Leave (ML)') {
+        opening_balance = 90;
+        available = 90;
+      }
+
+      return {
+        leave_type_name: type.name,
+        opening_balance,
+        used,
+        adjustments,
+        available,
+      };
+    });
+
+  // Add this useEffect to sync selectedTeacher with teacherSearch
+  useEffect(() => {
+    if (!teacherSearch) {
+      setSelectedTeacher(null);
+      return;
+    }
+    const match = teacherOptions.find(t => t.name === teacherSearch);
+    if (!match) {
+      setSelectedTeacher(null);
+    }
+  }, [teacherSearch, teacherOptions]);
+
+  const handleExportLeaveBalances = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Leave Balances');
+    sheet.addRow(['Type', 'Opening', 'Used', 'Adjustments', 'Available']);
+    mergedBalances.forEach(b => {
+      sheet.addRow([
+        b.leave_type_name,
+        b.opening_balance,
+        b.used,
+        b.adjustments,
+        b.available
+      ]);
+    });
+    const buf = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedTeacher ? selectedTeacher.name + '-' : ''}Leave-Balances.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       {/* Sidebar */}
@@ -1427,6 +1554,186 @@ export default function AdminManagementPanel() {
       </aside>
       {/* Main Content */}
       <main className="flex-1 p-10 flex flex-col gap-8">
+        {activeTab === 'leaves' && user?.role === 'admin' && (
+          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center relative">
+            <button
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition mb-4"
+              onClick={() => setShowLeaveBalances(v => !v)}
+            >
+              Leave Balances
+            </button>
+            <button
+              className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition mb-4 ml-2"
+              onClick={handleExportLeaveBalances}
+              disabled={!showLeaveBalances}
+            >
+              Export to Excel
+            </button>
+          </div>
+        )}
+        {activeTab === 'leaves' && user?.role === 'admin' && showLeaveBalances && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
+            <div className="flex flex-col sm:flex-row gap-4 items-center relative mb-4">
+              <label className="font-semibold text-blue-700">Search Teacher:</label>
+              <input
+                type="text"
+                value={teacherSearch}
+                onChange={e => {
+                  setTeacherSearch(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Type to search..."
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                style={{ minWidth: 220 }}
+              />
+              {showSuggestions && teacherSearch && (
+                <ul className="absolute top-14 left-32 z-10 bg-white border border-blue-200 rounded-lg shadow-lg w-[220px] max-h-60 overflow-y-auto">
+                  {teacherOptions
+                    .filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase()))
+                    .map(t => (
+                      <li
+                        key={t.id}
+                        className="px-4 py-2 cursor-pointer hover:bg-blue-100 text-blue-900"
+                        onMouseDown={() => {
+                          setSelectedTeacher(t);
+                          setTeacherSearch(t.name);
+                          setShowSuggestions(false);
+                        }}
+                      >
+                        {t.name}
+                      </li>
+                    ))}
+                  {teacherOptions.filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase())).length === 0 && (
+                    <li className="px-4 py-2 text-gray-400">No teachers found</li>
+                  )}
+                </ul>
+              )}
+            </div>
+            <h3 className="font-semibold text-blue-700 mb-2">{selectedTeacher ? `${selectedTeacher.name}'s` : 'Your'} Leave Balances ({new Date().getFullYear()})</h3>
+            <table className="min-w-full divide-y divide-gray-200 mb-2">
+              <thead className="bg-blue-100">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {mergedBalances.map((b, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2 font-semibold text-blue-800">{b.leave_type_name}</td>
+                    <td className="px-4 py-2">{b.opening_balance}</td>
+                    <td className="px-4 py-2">{b.used}</td>
+                    <td className="px-4 py-2">{b.adjustments}</td>
+                    <td className="px-4 py-2 font-bold text-green-700">{b.available}</td>
+                    <td className="px-4 py-2">
+                      <button
+                        className="px-3 py-1 rounded bg-yellow-600 text-white font-semibold hover:bg-yellow-700 text-xs shadow"
+                        onClick={() => {
+                          setAdjustModal({ open: true, row: b });
+                          setAdjustAmount('');
+                          setAdjustReason('');
+                          setAdjustError('');
+                        }}
+                      >
+                        Adjust
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {adjustModal.open && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={() => setAdjustModal({ open: false, row: null })} aria-label="Close">&times;</button>
+                  <h2 className="text-2xl font-bold text-blue-800 mb-6">Adjust {adjustModal.row.leave_type_name}</h2>
+                  <input
+                    type="number"
+                    value={adjustAmount}
+                    onChange={e => setAdjustAmount(e.target.value)}
+                    placeholder="Adjustment amount (e.g. 2 or -1)"
+                    className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-4"
+                  />
+                  <input
+                    type="text"
+                    value={adjustReason}
+                    onChange={e => setAdjustReason(e.target.value)}
+                    placeholder="Reason (optional)"
+                    className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-4"
+                  />
+                  {adjustError && <div className="text-red-600 mb-2">{adjustError}</div>}
+                  <div className="flex gap-4 mt-2">
+                    <button
+                      className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition"
+                      disabled={adjustLoading}
+                      onClick={async () => {
+                        setAdjustLoading(true);
+                        setAdjustError('');
+                        const userId = selectedTeacher ? selectedTeacher.id : user.id;
+                        const year = new Date().getFullYear();
+                        const leaveTypeId = leaveTypes.find(t => t.name === adjustModal.row.leave_type_name)?.leave_type_id;
+                        if (!leaveTypeId) {
+                          setAdjustError('Leave type not found');
+                          setAdjustLoading(false);
+                          return;
+                        }
+                        const amt = parseFloat(adjustAmount);
+                        if (isNaN(amt) || amt === 0) {
+                          setAdjustError('Enter a non-zero adjustment amount');
+                          setAdjustLoading(false);
+                          return;
+                        }
+                        try {
+                          const res = await fetch('http://localhost:5000/api/leave-balances/adjust', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              user_id: userId,
+                              leave_type_id: leaveTypeId,
+                              year,
+                              adjustment: amt
+                            })
+                          });
+                          if (res.ok) {
+                            setAdjustModal({ open: false, row: null });
+                            setAdjustAmount('');
+                            setAdjustReason('');
+                            setAdjustError('');
+                            // Refresh balances
+                            fetch(`http://localhost:5000/api/leave-balances?user_id=${userId}`)
+                              .then(res => res.json())
+                              .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+                          } else {
+                            const data = await res.json();
+                            setAdjustError(data.message || 'Failed to adjust');
+                          }
+                        } catch (err) {
+                          setAdjustError('Network error');
+                        }
+                        setAdjustLoading(false);
+                      }}
+                    >
+                      Apply
+                    </button>
+                    <button
+                      className="px-6 py-2 rounded-xl bg-gray-200 text-blue-700 font-bold shadow hover:bg-gray-300 transition"
+                      onClick={() => setAdjustModal({ open: false, row: null })}
+                      disabled={adjustLoading}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === 'teachers' && (
           <section>
             <div className="flex justify-between items-center mb-6">

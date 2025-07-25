@@ -31,11 +31,11 @@ export default function DiaryEntryForm({ userId }) {
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveRemarks, setLeaveRemarks] = useState('');
   const leaveTypes = [
-    { value: 'Casual Leave (CL)', label: 'Casual Leave (CL)' },
-    { value: 'Sick Leave (SL)', label: 'Sick Leave (SL)' },
-    { value: 'Earned Leave (EL)', label: 'Earned Leave (EL)' },
-    { value: 'Leave Without Pay (LWP)', label: 'Leave Without Pay (LWP)' },
-    { value: 'Maternity Leave (ML)', label: 'Maternity Leave (ML)' }
+    { value: 'Casual Leave (CL)', label: 'Casual Leave (CL)', id: 1 },
+    { value: 'Sick Leave (SL)', label: 'Sick Leave (SL)', id: 2 },
+    { value: 'Earned Leave (EL)', label: 'Earned Leave (EL)', id: 3 },
+    { value: 'Leave Without Pay (LWP)', label: 'Leave Without Pay (LWP)', id: 4 },
+    { value: 'Maternity Leave (ML)', label: 'Maternity Leave (ML)', id: 5 }
   ];
 
   const navigate = useNavigate();
@@ -338,6 +338,8 @@ export default function DiaryEntryForm({ userId }) {
                   className="px-6 py-2 rounded-lg backdrop-blur-md bg-blue-400/30 border border-blue-200/40 shadow-md text-blue-900 font-semibold hover:bg-blue-400/50 hover:text-white transition"
                   onClick={async () => {
                     if (!leaveReason || !leaveDays || !leaveStartDate || !leaveEndDate) return;
+                    const selectedType = leaveTypes.find(t => t.value === leaveReason);
+                    const leave_type_id = selectedType ? selectedType.id : null;
                     try {
                       const res = await fetch('http://localhost:5000/api/leaves', {
                         method: 'POST',
@@ -348,7 +350,8 @@ export default function DiaryEntryForm({ userId }) {
                           end_date: leaveEndDate,
                           reason: leaveReason,
                           days: leaveDays,
-                          remarks: leaveRemarks
+                          remarks: leaveRemarks,
+                          leave_type_id
                         })
                       });
                       if (res.ok) {
