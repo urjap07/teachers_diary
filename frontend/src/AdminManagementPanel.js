@@ -971,6 +971,20 @@ export default function AdminManagementPanel() {
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustError, setAdjustError] = useState('');
   const [showLeaveBalances, setShowLeaveBalances] = useState(false);
+  const [historyModal, setHistoryModal] = useState({ open: false, row: null, data: [] });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const yearRange = 2;
+  const years = [];
+  for (let y = currentYear - yearRange; y <= currentYear + yearRange; y++) {
+    years.push(y);
+  }
+  const [leaves, setLeaves] = useState([]);
+  const [leavesRefreshKey, setLeavesRefreshKey] = useState(0);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -1109,14 +1123,14 @@ export default function AdminManagementPanel() {
     // Fetch leave balances for selected teacher or admin
     const userIdToFetch = selectedTeacher ? selectedTeacher.id : user.id;
     if (user?.role === 'admin') {
-      fetch(`http://localhost:5000/api/leave-balances?user_id=${userIdToFetch}`)
+      fetch(`http://localhost:5000/api/leave-balances?user_id=${userIdToFetch}&year=${selectedYear}`)
         .then(res => res.json())
         .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
       fetch('http://localhost:5000/api/leave-types')
         .then(res => res.json())
         .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
     }
-  }, [activeTab, selectedTeacher]);
+  }, [activeTab, selectedTeacher, selectedYear]);
 
   // Filter teachers as the user types
   useEffect(() => {
@@ -1531,6 +1545,108 @@ export default function AdminManagementPanel() {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleAdjust = async () => {
+    setAdjustLoading(true);
+    setAdjustError('');
+    const userId = selectedTeacher ? selectedTeacher.id : user.id;
+    const year = new Date().getFullYear();
+    const leaveTypeId = leaveTypes.find(t => t.name === adjustModal.row.leave_type_name)?.leave_type_id;
+    if (!leaveTypeId) {
+      setAdjustError('Leave type not found');
+      setAdjustLoading(false);
+      return;
+    }
+    const amt = parseFloat(adjustAmount);
+    if (isNaN(amt) || amt === 0) {
+      setAdjustError('Enter a non-zero adjustment amount');
+      setAdjustLoading(false);
+      return;
+    }
+    try {
+      const res = await fetch('http://localhost:5000/api/leave-balances/adjust', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          leave_type_id: leaveTypeId,
+          year,
+          adjustment: amt,
+          reason: adjustReason,
+          adjusted_by: user.id
+        })
+      });
+      if (res.ok) {
+        setAdjustModal({ open: false, row: null });
+        setAdjustAmount('');
+        setAdjustReason('');
+        setAdjustError('');
+        // Refresh balances
+        fetch(`http://localhost:5000/api/leave-balances?user_id=${userId}`)
+          .then(res => res.json())
+          .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+      } else {
+        const data = await res.json();
+        setAdjustError(data.message || 'Failed to adjust');
+      }
+    } catch (err) {
+      setAdjustError('Network error');
+    }
+    setAdjustLoading(false);
+  };
+
+  const handleHistory = async () => {
+    setHistoryLoading(true);
+    setHistoryError('');
+    const userId = selectedTeacher ? selectedTeacher.id : user.id;
+    const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
+    const year = new Date().getFullYear();
+    const leaveTypeId = leaveTypes.find(t => t.name === historyModal.row.leave_type_name)?.leave_type_id;
+    try {
+      const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryModal({ open: true, row: { ...historyModal.row, teacherName }, data });
+      } else {
+        setHistoryError('Failed to fetch history');
+      }
+    } catch (err) {
+      setHistoryError('Network error');
+    }
+    setHistoryLoading(false);
+  };
+
+  // Calculate analytics for leave records
+  const leaveTypeCounts = {};
+  let totalLeaves = 0;
+  if (Array.isArray(leaves)) {
+    leaves.forEach(l => {
+      if (!leaveTypeCounts[l.reason]) leaveTypeCounts[l.reason] = 0;
+      leaveTypeCounts[l.reason] += parseFloat(l.days || 1);
+      totalLeaves += parseFloat(l.days || 1);
+    });
+  }
+  const leaveTypesToShow = [
+    'Casual Leave (CL)',
+    'Sick Leave (SL)',
+    'Earned Leave (EL)',
+    'Leave Without Pay (LWP)',
+    'Maternity Leave (ML)'
+  ];
+
+  // Fetch leave records for analytics when Leaves tab is active or leavesRefreshKey changes
+  useEffect(() => {
+    if (activeTab === 'leaves' && user?.role === 'admin') {
+      let url = 'http://localhost:5000/api/leaves';
+      const params = [];
+      if (selectedTeacher) params.push(`user_id=${selectedTeacher.id}`);
+      if (selectedYear) params.push(`year=${selectedYear}`);
+      if (params.length > 0) url += '?' + params.join('&');
+      fetch(url)
+        .then(res => res.json())
+        .then(data => setLeaves(Array.isArray(data) ? data : []));
+    }
+  }, [activeTab, selectedTeacher, selectedYear, leavesRefreshKey]);
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       {/* Sidebar */}
@@ -1563,11 +1679,10 @@ export default function AdminManagementPanel() {
               Leave Balances
             </button>
             <button
-              className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition mb-4 ml-2"
-              onClick={handleExportLeaveBalances}
-              disabled={!showLeaveBalances}
+              className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold shadow hover:bg-purple-700 transition mb-4"
+              onClick={() => setShowAnalytics(v => !v)}
             >
-              Export to Excel
+              Analytics
             </button>
           </div>
         )}
@@ -1610,6 +1725,18 @@ export default function AdminManagementPanel() {
                   )}
                 </ul>
               )}
+              {/* Year dropdown */}
+              <label className="font-semibold text-blue-700 ml-4">Year:</label>
+              <select
+                value={selectedYear}
+                onChange={e => setSelectedYear(Number(e.target.value))}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                style={{ minWidth: 120 }}
+              >
+                {years.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
             <h3 className="font-semibold text-blue-700 mb-2">{selectedTeacher ? `${selectedTeacher.name}'s` : 'Your'} Leave Balances ({new Date().getFullYear()})</h3>
             <table className="min-w-full divide-y divide-gray-200 mb-2">
@@ -1633,7 +1760,7 @@ export default function AdminManagementPanel() {
                     <td className="px-4 py-2 font-bold text-green-700">{b.available}</td>
                     <td className="px-4 py-2">
                       <button
-                        className="px-3 py-1 rounded bg-yellow-600 text-white font-semibold hover:bg-yellow-700 text-xs shadow"
+                        className="px-3 py-1 rounded bg-yellow-600 text-white font-semibold hover:bg-yellow-700 text-xs shadow mr-2"
                         onClick={() => {
                           setAdjustModal({ open: true, row: b });
                           setAdjustAmount('');
@@ -1642,6 +1769,31 @@ export default function AdminManagementPanel() {
                         }}
                       >
                         Adjust
+                      </button>
+                      <button
+                        className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 text-xs shadow"
+                        onClick={async () => {
+                          setHistoryModal({ open: true, row: b, data: [] });
+                          setHistoryLoading(true);
+                          setHistoryError('');
+                          const userId = selectedTeacher ? selectedTeacher.id : user.id;
+                          const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
+                          const leaveTypeId = leaveTypes.find(t => t.name === b.leave_type_name)?.leave_type_id;
+                          try {
+                            const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
+                            if (res.ok) {
+                              const data = await res.json();
+                              setHistoryModal({ open: true, row: { ...b, teacherName }, data });
+                            } else {
+                              setHistoryError('Failed to fetch history');
+                            }
+                          } catch (err) {
+                            setHistoryError('Network error');
+                          }
+                          setHistoryLoading(false);
+                        }}
+                      >
+                        History
                       </button>
                     </td>
                   </tr>
@@ -1672,52 +1824,7 @@ export default function AdminManagementPanel() {
                     <button
                       className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition"
                       disabled={adjustLoading}
-                      onClick={async () => {
-                        setAdjustLoading(true);
-                        setAdjustError('');
-                        const userId = selectedTeacher ? selectedTeacher.id : user.id;
-                        const year = new Date().getFullYear();
-                        const leaveTypeId = leaveTypes.find(t => t.name === adjustModal.row.leave_type_name)?.leave_type_id;
-                        if (!leaveTypeId) {
-                          setAdjustError('Leave type not found');
-                          setAdjustLoading(false);
-                          return;
-                        }
-                        const amt = parseFloat(adjustAmount);
-                        if (isNaN(amt) || amt === 0) {
-                          setAdjustError('Enter a non-zero adjustment amount');
-                          setAdjustLoading(false);
-                          return;
-                        }
-                        try {
-                          const res = await fetch('http://localhost:5000/api/leave-balances/adjust', {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              user_id: userId,
-                              leave_type_id: leaveTypeId,
-                              year,
-                              adjustment: amt
-                            })
-                          });
-                          if (res.ok) {
-                            setAdjustModal({ open: false, row: null });
-                            setAdjustAmount('');
-                            setAdjustReason('');
-                            setAdjustError('');
-                            // Refresh balances
-                            fetch(`http://localhost:5000/api/leave-balances?user_id=${userId}`)
-                              .then(res => res.json())
-                              .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
-                          } else {
-                            const data = await res.json();
-                            setAdjustError(data.message || 'Failed to adjust');
-                          }
-                        } catch (err) {
-                          setAdjustError('Network error');
-                        }
-                        setAdjustLoading(false);
-                      }}
+                      onClick={handleAdjust}
                     >
                       Apply
                     </button>
@@ -1730,6 +1837,109 @@ export default function AdminManagementPanel() {
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+            {historyModal.open && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-lg w-full relative flex flex-col justify-center items-center">
+                  <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={() => setHistoryModal({ open: false, row: null, data: [] })} aria-label="Close">&times;</button>
+                  <h2 className="text-2xl font-bold text-blue-800 mb-2">Adjustment History: {historyModal.row?.leave_type_name}</h2>
+                  <div className="mb-4 text-blue-700 font-semibold">Teacher: {historyModal.row?.teacherName || user.name}</div>
+                  {historyLoading ? (
+                    <div className="text-blue-700 font-semibold py-8">Loading...</div>
+                  ) : historyError ? (
+                    <div className="text-red-600 mb-4">{historyError}</div>
+                  ) : historyModal.data.length === 0 ? (
+                    <div className="text-gray-500 mb-4">No adjustment history found.</div>
+                  ) : (
+                    <table className="min-w-full divide-y divide-gray-200 mb-2">
+                      <thead className="bg-blue-100">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Amount</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Reason</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {historyModal.data.map((h, idx) => (
+                          <tr key={h.id || idx}>
+                            <td className="px-4 py-2">{new Date(h.created_at).toLocaleString()}</td>
+                            <td className="px-4 py-2 font-bold text-blue-800">{h.amount}</td>
+                            <td className="px-4 py-2">{h.reason}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {activeTab === 'leaves' && user?.role === 'admin' && showAnalytics && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
+            <div className="w-full flex flex-wrap gap-4">
+              {leaveTypesToShow.map(type => (
+                <div
+                  key={type}
+                  className={`flex-1 min-w-[180px] bg-white/80 border border-blue-200 rounded-xl shadow p-4 flex flex-col items-center cursor-pointer transition-all duration-150 ${selectedAnalyticsType === type ? 'ring-4 ring-purple-400 border-purple-600' : 'hover:border-blue-400'}`}
+                  onClick={() => setSelectedAnalyticsType(selectedAnalyticsType === type ? null : type)}
+                >
+                  <div className="text-lg font-bold text-blue-700 mb-1">{type.replace(' (', '\n(')}</div>
+                  <div className="text-3xl font-extrabold text-blue-900">{leaveTypeCounts[type] || 0}</div>
+                  <div className="text-xs text-gray-500 mt-1">Total Days</div>
+                </div>
+              ))}
+              <div
+                className={`flex-1 min-w-[180px] bg-white/80 border border-blue-200 rounded-xl shadow p-4 flex flex-col items-center cursor-pointer transition-all duration-150 ${selectedAnalyticsType === 'Total' ? 'ring-4 ring-purple-400 border-purple-600' : 'hover:border-blue-400'}`}
+                onClick={() => setSelectedAnalyticsType(selectedAnalyticsType === 'Total' ? null : 'Total')}
+              >
+                <div className="text-lg font-bold text-blue-700 mb-1">Total Leaves</div>
+                <div className="text-3xl font-extrabold text-blue-900">{totalLeaves}</div>
+                <div className="text-xs text-gray-500 mt-1">All Types</div>
+              </div>
+            </div>
+            {/* Details table for selected card, always below the cards */}
+            {selectedAnalyticsType && (
+              <div className="mt-6 bg-white/90 border border-blue-200 rounded-xl shadow p-4">
+                <h3 className="text-lg font-bold text-blue-700 mb-4">
+                  {selectedAnalyticsType === 'Total' ? 'All Leave Records' : `${selectedAnalyticsType} Records`}
+                </h3>
+                <table className="min-w-full divide-y divide-gray-200 mb-2">
+                  <thead className="bg-blue-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Applicant</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">From</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">To</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Days</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {(selectedAnalyticsType === 'Total'
+                      ? leaves
+                      : leaves.filter(l => l.reason === selectedAnalyticsType)
+                    ).map((l, idx) => (
+                      <tr key={l.id || idx}>
+                        <td className="px-4 py-2">{l.applicant_name || l.name || '-'}</td>
+                        <td className="px-4 py-2">{l.reason}</td>
+                        <td className="px-4 py-2">{l.start_date || l.date}</td>
+                        <td className="px-4 py-2">{l.end_date || '-'}</td>
+                        <td className="px-4 py-2">{l.days}</td>
+                        <td className="px-4 py-2">{l.status}</td>
+                        <td className="px-4 py-2">{l.remarks || '-'}</td>
+                      </tr>
+                    ))}
+                    {(selectedAnalyticsType === 'Total'
+                      ? leaves.length === 0
+                      : leaves.filter(l => l.reason === selectedAnalyticsType).length === 0
+                    ) && (
+                      <tr><td colSpan={7} className="text-center py-4 text-gray-400">No records found.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -1864,7 +2074,7 @@ export default function AdminManagementPanel() {
               </select>
             </div>
             <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200 overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
+              <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base mb-6">
                 <thead className="bg-blue-100">
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>

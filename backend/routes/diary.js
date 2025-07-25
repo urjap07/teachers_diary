@@ -275,19 +275,25 @@ router.post('/leaves', async (req, res) => {
 });
 
 router.get('/leaves', async (req, res) => {
-  const { user_id } = req.query;
+  const { user_id, year } = req.query;
   try {
     let rows;
+    let baseQuery = 'SELECT leaves.*, users.name AS applicant_name FROM leaves JOIN users ON leaves.user_id = users.id';
+    let where = [];
+    let params = [];
     if (user_id) {
-      [rows] = await db.query(
-        'SELECT * FROM leaves WHERE user_id = ? ORDER BY start_date DESC',
-        [user_id]
-      );
-    } else {
-      [rows] = await db.query(
-        'SELECT * FROM leaves ORDER BY start_date DESC'
-      );
+      where.push('leaves.user_id = ?');
+      params.push(user_id);
     }
+    if (year) {
+      where.push('YEAR(leaves.start_date) = ?');
+      params.push(year);
+    }
+    if (where.length > 0) {
+      baseQuery += ' WHERE ' + where.join(' AND ');
+    }
+    baseQuery += ' ORDER BY leaves.start_date DESC';
+    [rows] = await db.query(baseQuery, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

@@ -258,7 +258,7 @@ router.get('/leave-balances', async (req, res) => {
 
 // Admin adjustment endpoint
 router.put('/leave-balances/adjust', async (req, res) => {
-  const { user_id, leave_type_id, year, adjustment } = req.body;
+  const { user_id, leave_type_id, year, adjustment, reason, adjusted_by } = req.body;
   if (!user_id || !leave_type_id || !year || typeof adjustment !== 'number') {
     return res.status(400).json({ message: 'user_id, leave_type_id, year, and adjustment (number) are required' });
   }
@@ -275,7 +275,29 @@ router.put('/leave-balances/adjust', async (req, res) => {
         [user_id, leave_type_id, year, adjustment]
       );
     }
+    // Insert into adjustment_log
+    await db.query(
+      'INSERT INTO adjustment_log (user_id, leave_type_id, year, amount, reason, adjusted_by) VALUES (?, ?, ?, ?, ?, ?)',
+      [user_id, leave_type_id, year, adjustment, reason || '', adjusted_by || null]
+    );
     res.json({ message: 'Adjustment applied successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Get adjustment history for a user/leave_type/year
+router.get('/leave-balances/adjustments', async (req, res) => {
+  const { user_id, leave_type_id, year } = req.query;
+  if (!user_id || !leave_type_id || !year) {
+    return res.status(400).json({ message: 'user_id, leave_type_id, and year are required' });
+  }
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM adjustment_log WHERE user_id = ? AND leave_type_id = ? AND year = ? ORDER BY created_at DESC',
+      [user_id, leave_type_id, year]
+    );
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

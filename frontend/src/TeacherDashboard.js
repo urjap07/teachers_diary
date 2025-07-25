@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DiaryLogTable from './DiaryLogTable';
 import DiarySummary from './DiarySummary';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 const TABS = [
   { key: 'summary', label: 'Summary' },
@@ -88,6 +89,62 @@ export default function TeacherDashboard({ userId }) {
   const [activeTab, setActiveTab] = useState('summary');
   const navigate = useNavigate();
   const [showExportModal, setShowExportModal] = useState(false);
+  const [leaveBalances, setLeaveBalances] = useState([]);
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [showLeaveBalances, setShowLeaveBalances] = useState(false);
+  useEffect(() => {
+    fetch(`http://localhost:5000/api/leave-balances?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+    fetch('http://localhost:5000/api/leave-types')
+      .then(res => res.json())
+      .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+  }, [userId]);
+  const mergedBalances = leaveTypes
+    .filter(type => [
+      'Casual Leave (CL)',
+      'Sick Leave (SL)',
+      'Earned Leave (EL)',
+      'Leave Without Pay (LWP)',
+      'Maternity Leave (ML)'
+    ].includes(type.name))
+    .map(type => {
+      const bal = leaveBalances.find(b => b.leave_type_id === type.leave_type_id);
+      let available = '-';
+      let opening_balance = '-';
+      let used = '-';
+      let adjustments = '-';
+      if (bal) {
+        opening_balance = bal.opening_balance;
+        used = bal.used;
+        adjustments = bal.adjustments;
+        const usedNum = parseFloat(bal.used) || 0;
+        const adjNum = parseFloat(bal.adjustments) || 0;
+        const usedFalsy = !bal.used || bal.used === '0' || bal.used === '0.00';
+        const adjFalsy = !bal.adjustments || bal.adjustments === '0' || bal.adjustments === '0.00';
+        if (
+          (type.name === 'Leave Without Pay (LWP)' || type.name === 'Maternity Leave (ML)') &&
+          (usedFalsy && adjFalsy)
+        ) {
+          available = bal.opening_balance;
+        } else {
+          available = (parseFloat(bal.opening_balance) - usedNum + adjNum).toFixed(2);
+        }
+      } else if (type.name === 'Leave Without Pay (LWP)') {
+        opening_balance = 999;
+        available = 999;
+      } else if (type.name === 'Maternity Leave (ML)') {
+        opening_balance = 90;
+        available = 90;
+      }
+      return {
+        leave_type_name: type.name,
+        opening_balance,
+        used,
+        adjustments,
+        available,
+      };
+    });
 
   // Fetch all diary entries for this teacher
   const [allEntries, setAllEntries] = useState([]);
@@ -175,6 +232,29 @@ export default function TeacherDashboard({ userId }) {
     setShowExportModal(false);
   };
 
+  const handleExportLeaveBalances = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Leave Balances');
+    sheet.addRow(['Type', 'Opening', 'Used', 'Adjustments', 'Available']);
+    mergedBalances.forEach(b => {
+      sheet.addRow([
+        b.leave_type_name,
+        b.opening_balance,
+        b.used,
+        b.adjustments,
+        b.available
+      ]);
+    });
+    const buf = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Leave-Balances.xlsx`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200 py-10">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-4xl flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
@@ -207,6 +287,45 @@ export default function TeacherDashboard({ userId }) {
             Logout
           </button>
         </div>
+        {/* Insert Leave Balances button above stat cards */}
+        <div className="w-full flex justify-start mb-4">
+          <button
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
+            onClick={() => setShowLeaveBalances(v => !v)}
+          >
+            Leave Balances
+          </button>
+        </div>
+        {showLeaveBalances && (
+          <div className="w-full mb-8">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 shadow relative">
+              {/* Remove the Export to Excel button from the leave balances table */}
+              <h3 className="font-semibold text-blue-700 mb-2">Your Leave Balances ({new Date().getFullYear()})</h3>
+              <table className="min-w-full divide-y divide-gray-200 mb-2">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {mergedBalances.map((b, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2 font-semibold text-blue-800">{b.leave_type_name}</td>
+                      <td className="px-4 py-2">{b.opening_balance}</td>
+                      <td className="px-4 py-2">{b.used}</td>
+                      <td className="px-4 py-2">{b.adjustments}</td>
+                      <td className="px-4 py-2 font-bold text-green-700">{b.available}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         <div className="w-full backdrop-blur-lg bg-white/30 border border-white/40 shadow-lg rounded-2xl p-6" style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}>
           {activeTab === 'log' && (
             <DiaryLogTable userId={userId} />
