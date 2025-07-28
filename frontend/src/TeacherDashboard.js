@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import DiaryLogTable from './DiaryLogTable';
 import DiarySummary from './DiarySummary';
 import * as XLSX from 'xlsx';
-import ExcelJS from 'exceljs';
 
 const TABS = [
   { key: 'summary', label: 'Summary' },
@@ -232,28 +231,28 @@ export default function TeacherDashboard({ userId }) {
     setShowExportModal(false);
   };
 
-  const handleExportLeaveBalances = async () => {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Leave Balances');
-    sheet.addRow(['Type', 'Opening', 'Used', 'Adjustments', 'Available']);
-    mergedBalances.forEach(b => {
-      sheet.addRow([
-        b.leave_type_name,
-        b.opening_balance,
-        b.used,
-        b.adjustments,
-        b.available
-      ]);
-    });
-    const buf = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Leave-Balances.xlsx`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
+  // const handleExportLeaveBalances = async () => {
+  //   const workbook = new ExcelJS.Workbook();
+  //   const sheet = workbook.addWorksheet('Leave Balances');
+  //   sheet.addRow(['Type', 'Opening', 'Used', 'Adjustments', 'Available']);
+  //   mergedBalances.forEach(b => {
+  //     sheet.addRow([
+  //       b.leave_type_name,
+  //       b.opening_balance,
+  //       b.used,
+  //       b.adjustments,
+  //       b.available
+  //     ]);
+  //   });
+  //   const buf = await workbook.xlsx.writeBuffer();
+  //   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  //   const url = window.URL.createObjectURL(blob);
+  //   const a = document.createElement('a');
+  //   a.href = url;
+  //   a.download = `Leave-Balances.xlsx`;
+  //   a.click();
+  //   window.URL.revokeObjectURL(url);
+  // };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200 py-10">
@@ -288,14 +287,16 @@ export default function TeacherDashboard({ userId }) {
           </button>
         </div>
         {/* Insert Leave Balances button above stat cards */}
-        <div className="w-full flex justify-start mb-4">
-          <button
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
-            onClick={() => setShowLeaveBalances(v => !v)}
-          >
-            Leave Balances
-          </button>
-        </div>
+        {activeTab === 'summary' && (
+          <div className="w-full flex justify-start mb-4">
+            <button
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
+              onClick={() => setShowLeaveBalances(v => !v)}
+            >
+              Leave Balances
+            </button>
+          </div>
+        )}
         {showLeaveBalances && (
           <div className="w-full mb-8">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 shadow relative">

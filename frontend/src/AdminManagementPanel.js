@@ -963,7 +963,7 @@ export default function AdminManagementPanel() {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teacherOptions, setTeacherOptions] = useState([]);
   const [teacherSearch, setTeacherSearch] = useState('');
-  const filteredTeacherOptions = teacherOptions.filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase()));
+  // const filteredTeacherOptions = teacherOptions.filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase()));
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [adjustModal, setAdjustModal] = useState({ open: false, row: null });
   const [adjustAmount, setAdjustAmount] = useState('');
@@ -982,7 +982,6 @@ export default function AdminManagementPanel() {
     years.push(y);
   }
   const [leaves, setLeaves] = useState([]);
-  const [leavesRefreshKey, setLeavesRefreshKey] = useState(0);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null);
 
@@ -1110,7 +1109,7 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
     }
-  }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject]);
+  }, [activeTab, selectedSubjectCourse, selectedSubjectSemester, selectedTopicCourse, selectedTopicSubject, user?.role, user?.id]);
 
   useEffect(() => {
     // Fetch all teachers for the dropdown
@@ -1130,7 +1129,7 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
     }
-  }, [activeTab, selectedTeacher, selectedYear]);
+  }, [activeTab, selectedTeacher, selectedYear, user?.role, user?.id]);
 
   // Filter teachers as the user types
   useEffect(() => {
@@ -1594,26 +1593,26 @@ export default function AdminManagementPanel() {
     setAdjustLoading(false);
   };
 
-  const handleHistory = async () => {
-    setHistoryLoading(true);
-    setHistoryError('');
-    const userId = selectedTeacher ? selectedTeacher.id : user.id;
-    const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
-    const year = new Date().getFullYear();
-    const leaveTypeId = leaveTypes.find(t => t.name === historyModal.row.leave_type_name)?.leave_type_id;
-    try {
-      const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
-      if (res.ok) {
-        const data = await res.json();
-        setHistoryModal({ open: true, row: { ...historyModal.row, teacherName }, data });
-      } else {
-        setHistoryError('Failed to fetch history');
-      }
-    } catch (err) {
-      setHistoryError('Network error');
-    }
-    setHistoryLoading(false);
-  };
+  // const handleHistory = async () => {
+  //   setHistoryLoading(true);
+  //   setHistoryError('');
+  //   const userId = selectedTeacher ? selectedTeacher.id : user.id;
+  //   const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
+  //   const year = new Date().getFullYear();
+  //   const leaveTypeId = leaveTypes.find(t => t.name === historyModal.row.leave_type_name)?.leave_type_id;
+  //   try {
+  //     const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
+  //     if (res.ok) {
+  //         const data = await res.json();
+  //         setHistoryModal({ open: true, row: { ...historyModal.row, teacherName }, data });
+  //     } else {
+  //         setHistoryError('Failed to fetch history');
+  //     }
+  //   } catch (err) {
+  //     setHistoryError('Network error');
+  //   }
+  //   setHistoryLoading(false);
+  // };
 
   // Calculate analytics for leave records
   const leaveTypeCounts = {};
@@ -1633,7 +1632,7 @@ export default function AdminManagementPanel() {
     'Maternity Leave (ML)'
   ];
 
-  // Fetch leave records for analytics when Leaves tab is active or leavesRefreshKey changes
+  // Fetch leave records for analytics when Leaves tab is active
   useEffect(() => {
     if (activeTab === 'leaves' && user?.role === 'admin') {
       let url = 'http://localhost:5000/api/leaves';
@@ -1645,7 +1644,7 @@ export default function AdminManagementPanel() {
         .then(res => res.json())
         .then(data => setLeaves(Array.isArray(data) ? data : []));
     }
-  }, [activeTab, selectedTeacher, selectedYear, leavesRefreshKey]);
+  }, [activeTab, selectedTeacher, selectedYear, user?.role]);
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
@@ -1737,6 +1736,12 @@ export default function AdminManagementPanel() {
                   <option key={y} value={y}>{y}</option>
                 ))}
               </select>
+              <button
+                className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition text-sm ml-auto"
+                onClick={handleExportLeaveBalances}
+              >
+                Export to Excel
+              </button>
             </div>
             <h3 className="font-semibold text-blue-700 mb-2">{selectedTeacher ? `${selectedTeacher.name}'s` : 'Your'} Leave Balances ({new Date().getFullYear()})</h3>
             <table className="min-w-full divide-y divide-gray-200 mb-2">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import LeaveApprovalDashboard from './LeaveApprovalDashboard';
+// import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 
 function calculateDuration(start, end) {
   if (!start || !end) return 0;
@@ -377,7 +377,7 @@ export default function AdminDashboard() {
   const diaryLogRowRefs = useRef([]);
   const teachersHeadingRef = useRef(null);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showApprovalDashboard, setShowApprovalDashboard] = useState(false);
+  // const [showApprovalDashboard, setShowApprovalDashboard] = useState(false);
 
   useEffect(() => {
     let url = 'http://localhost:5000/api/diary-entries';
@@ -1110,9 +1110,7 @@ export default function AdminDashboard() {
         {showExportModal && (
           <ExportExcelModal onClose={() => setShowExportModal(false)} onExport={handleExport} />
         )}
-        {showApprovalDashboard && (
-          <LeaveApprovalDashboard approverId={user.id} />
-        )}
+
       </div>
     </div>
   );

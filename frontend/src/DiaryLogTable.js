@@ -11,13 +11,22 @@ function calculateDuration(start, end) {
 export default function DiaryLogTable({ userId }) {
   const [entries, setEntries] = useState([]);
   useEffect(() => {
+    // Always fetch all entries for the teacher without date filtering
     let url = 'http://localhost:5000/api/diary-entries';
     if (userId) {
       url += `?user_id=${Number(userId)}`;
     }
+    // Explicitly clear any date filters by not including them
+    console.log('DiaryLogTable fetching from URL:', url);
     fetch(url)
       .then(res => res.json())
-      .then(data => setEntries(Array.isArray(data) ? data : []));
+      .then(data => {
+        console.log('DiaryLogTable fetched data:', data);
+        setEntries(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error('DiaryLogTable fetch error:', err);
+      });
   }, [userId]);
 
   // Calculate totals
@@ -52,7 +61,7 @@ export default function DiaryLogTable({ userId }) {
                 }
               >
                 <td className="px-4 py-2 border-b border-blue-100 text-blue-900">{new Date(e.date).toLocaleDateString()}</td>
-                <td className="px-4 py-2 border-b border-blue-100 text-blue-900">{e.course_id}</td>
+                <td className="px-4 py-2 border-b border-blue-100 text-blue-900">{e.course_name || e.course_id}</td>
                 <td className="px-4 py-2 border-b border-blue-100 text-blue-900">{e.subject}</td>
                 <td className="px-4 py-2 border-b border-blue-100 text-blue-900">{e.topic_covered}</td>
                 <td className="px-4 py-2 border-b border-blue-100 text-blue-900">{e.remarks}</td>

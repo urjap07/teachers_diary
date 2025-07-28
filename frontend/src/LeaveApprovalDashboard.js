@@ -35,7 +35,7 @@ function ActionModal({ open, action, onClose, onConfirm, leave, loading }) {
 
 export default function LeaveApprovalDashboard() {
   const [requests, setRequests] = useState([]);
-  const [leaveTypes, setLeaveTypes] = useState([]);
+  // const [leaveTypes, setLeaveTypes] = useState([]);
   const [userMap, setUserMap] = useState({});
   const [modal, setModal] = useState({ open: false, action: '', leave: null });
   const [loading, setLoading] = useState(false);
@@ -52,9 +52,9 @@ export default function LeaveApprovalDashboard() {
         });
         setRequests(Array.isArray(data) ? data : []);
       });
-    fetch('http://localhost:5000/api/leave-types')
-      .then(res => res.json())
-      .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+    // fetch('http://localhost:5000/api/leave-types')
+    //   .then(res => res.json())
+    //   .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
     fetch('http://localhost:5000/api/teachers')
       .then(res => res.json())
       .then(data => {
