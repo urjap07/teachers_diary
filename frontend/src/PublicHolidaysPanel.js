@@ -120,48 +120,50 @@ export default function PublicHolidaysPanel() {
   };
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold">Public Holidays</h2>
-        <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => { setShowAdd(true); setForm({ date: '', name: '' }); setMsg(''); }}>+ Add Holiday</button>
+    <div className="p-2 sm:p-4 w-full">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2 w-full">
+        <h2 className="text-2xl font-bold text-blue-800">Public Holidays</h2>
+        <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition w-full sm:w-auto" onClick={() => { setShowAdd(true); setForm({ date: '', name: '' }); setMsg(''); }}>+ Add Holiday</button>
       </div>
       {loading ? <p>Loading...</p> : error ? <p className="text-red-500">{error}</p> : (
-        <table className="w-full bg-white rounded shadow">
-          <thead>
-            <tr className="bg-blue-100">
-              <th className="p-2">Date</th>
-              <th className="p-2">Name</th>
-              <th className="p-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {holidays.map(h => (
-              <tr key={h.id} className="border-t">
-                <td className="p-2">{h.date}</td>
-                <td className="p-2">{h.name}</td>
-                <td className="p-2">
-                  <button
-                    className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700 transition mr-2"
-                    onClick={() => { setShowEdit(true); setSelected(h); setForm({ date: h.date.slice(0, 10), name: h.name }); setMsg(''); }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 transition"
-                    onClick={() => handleDelete(h.id)}
-                  >
-                    Delete
-                  </button>
-                </td>
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[400px] bg-white rounded shadow">
+            <thead>
+              <tr className="bg-blue-100">
+                <th className="p-2">Date</th>
+                <th className="p-2">Name</th>
+                <th className="p-2">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {holidays.map(h => (
+                <tr key={h.id} className="border-t">
+                  <td className="p-2">{h.date}</td>
+                  <td className="p-2">{h.name}</td>
+                  <td className="p-2">
+                    <button
+                      className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700 transition mr-2"
+                      onClick={() => { setShowEdit(true); setSelected(h); setForm({ date: h.date.slice(0, 10), name: h.name }); setMsg(''); }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 transition"
+                      onClick={() => handleDelete(h.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       {/* Add Modal */}
       {showAdd && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-xl w-80">
+          <div className="bg-white p-6 rounded shadow-xl w-full max-w-md">
             <h3 className="font-bold mb-2">Add Holiday</h3>
             <input type="date" className="w-full mb-2 p-2 border rounded" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Holiday Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -178,7 +180,7 @@ export default function PublicHolidaysPanel() {
       {/* Edit Modal */}
       {showEdit && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow-xl w-80">
+          <div className="bg-white p-6 rounded shadow-xl w-full max-w-md">
             <h3 className="font-bold mb-2">Edit Holiday</h3>
             <input type="date" className="w-full mb-2 p-2 border rounded" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
             <input type="text" className="w-full mb-2 p-2 border rounded" placeholder="Holiday Name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />

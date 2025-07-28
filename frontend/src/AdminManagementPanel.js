@@ -1732,9 +1732,15 @@ export default function AdminManagementPanel() {
                 className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
                 style={{ minWidth: 120 }}
               >
-                {years.map(y => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
+                {(() => {
+                  const currentYear = new Date().getFullYear();
+                  const earliestYear = 2020;
+                  const years = [];
+                  for (let y = currentYear; y >= earliestYear; y--) years.push(y);
+                  return years.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ));
+                })()}
               </select>
               <button
                 className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition text-sm ml-auto"

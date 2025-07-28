@@ -108,63 +108,67 @@ export default function LeaveApprovalDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto mt-8">
-      <h2 className="text-2xl font-bold mb-6 text-blue-800">All Leave Records</h2>
+      <div className="flex justify-between items-center mb-4 w-full">
+        <h2 className="text-2xl font-bold text-blue-800">All Leave Records</h2>
+      </div>
       {msg && <div className="mb-4 text-green-700 font-semibold text-center">{msg}</div>}
-      <div className="bg-white rounded-xl shadow p-10">
-        <table className="w-full min-w-[900px] divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
-          <thead>
-            <tr className="bg-blue-50">
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">Applicant</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">Type</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">From</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">To</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">Comments</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">Status</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-blue-700 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {requests.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-6 text-gray-400">No leave records</td>
+      <div className="bg-white rounded-xl shadow p-2 sm:p-4 md:p-8">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[800px] divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
+            <thead>
+              <tr className="bg-blue-50">
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Applicant</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Type</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">From</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">To</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Comments</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Status</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Actions</th>
               </tr>
-            ) : (
-              requests.map((req, idx) => (
-                <tr key={req.leave_id || req.id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
-                  <td className="px-6 py-4 font-semibold text-blue-900">{userMap[req.user_id] || req.user_id}</td>
-                  <td className="px-6 py-4 font-semibold text-purple-700">{req.reason || '-'}</td>
-                  <td className="px-6 py-4">{(req.from_date || req.start_date)?.slice(0,10)}</td>
-                  <td className="px-6 py-4">{(req.to_date || req.end_date)?.slice(0,10)}</td>
-                  <td className="px-6 py-4">{req.remarks || req.comments || '-'}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-4 py-2 rounded-full text-xs font-bold ${
-                      req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      req.status === 'approved' ? 'bg-green-100 text-green-800' :
-                      req.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      req.status === 'escalated' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {req.status === 'escalated' ? 'escalated' : req.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-nowrap justify-center gap-x-3">
-                      <button className="px-2 py-1 rounded bg-green-500 text-white font-semibold hover:bg-green-700 text-sm" onClick={() => handleAction(req, 'approve')}>
-                        Approve
-                      </button>
-                      <button className="px-2 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 text-sm" onClick={() => handleAction(req, 'reject')}>
-                        Reject
-                      </button>
-                      <button className="px-2 py-1 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-700 text-sm" onClick={() => handleAction(req, 'escalate')}>
-                        Escalate
-                      </button>
-                    </div>
-                  </td>
+            </thead>
+            <tbody>
+              {requests.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-6 text-gray-400">No leave records</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                requests.map((req, idx) => (
+                  <tr key={req.leave_id || req.id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-blue-900">{userMap[req.user_id] || req.user_id}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-purple-700">{req.reason || '-'}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4">{(req.from_date || req.start_date)?.slice(0,10)}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4">{(req.to_date || req.end_date)?.slice(0,10)}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4">{req.remarks || req.comments || '-'}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4">
+                      <span className={`px-4 py-2 rounded-full text-xs font-bold ${
+                        req.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        req.status === 'approved' ? 'bg-green-100 text-green-800' :
+                        req.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        req.status === 'escalated' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {req.status === 'escalated' ? 'escalated' : req.status}
+                      </span>
+                    </td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4">
+                      <div className="flex flex-col sm:flex-row gap-1 sm:gap-x-3">
+                        <button className="px-2 py-1 rounded bg-green-500 text-white font-semibold hover:bg-green-700 text-xs sm:text-sm" onClick={() => handleAction(req, 'approve')}>
+                          Approve
+                        </button>
+                        <button className="px-2 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700 text-xs sm:text-sm" onClick={() => handleAction(req, 'reject')}>
+                          Reject
+                        </button>
+                        <button className="px-2 py-1 rounded bg-yellow-500 text-white font-semibold hover:bg-yellow-700 text-xs sm:text-sm" onClick={() => handleAction(req, 'escalate')}>
+                          Escalate
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
       <ActionModal
         open={modal.open}
