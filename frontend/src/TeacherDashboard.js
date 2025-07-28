@@ -112,52 +112,6 @@ export default function TeacherDashboard({ userId }) {
     return filtered.length > 0 ? filtered[0].status : null;
   };
 
-  const mergedBalances = leaveTypes
-    .filter(type => [
-      'Casual Leave (CL)',
-      'Sick Leave (SL)',
-      'Earned Leave (EL)',
-      'Leave Without Pay (LWP)',
-      'Maternity Leave (ML)'
-    ].includes(type.name))
-    .map(type => {
-      const bal = leaveBalances.find(b => b.leave_type_id === type.leave_type_id);
-      let available = '-';
-      let opening_balance = '-';
-      let used = '-';
-      let adjustments = '-';
-      if (bal) {
-        opening_balance = bal.opening_balance;
-        used = bal.used;
-        adjustments = bal.adjustments;
-        const usedNum = parseFloat(bal.used) || 0;
-        const adjNum = parseFloat(bal.adjustments) || 0;
-        const usedFalsy = !bal.used || bal.used === '0' || bal.used === '0.00';
-        const adjFalsy = !bal.adjustments || bal.adjustments === '0' || bal.adjustments === '0.00';
-        if (
-          (type.name === 'Leave Without Pay (LWP)' || type.name === 'Maternity Leave (ML)') &&
-          (usedFalsy && adjFalsy)
-        ) {
-          available = bal.opening_balance;
-        } else {
-          available = (parseFloat(bal.opening_balance) - usedNum + adjNum).toFixed(2);
-        }
-      } else if (type.name === 'Leave Without Pay (LWP)') {
-        opening_balance = 999;
-        available = 999;
-      } else if (type.name === 'Maternity Leave (ML)') {
-        opening_balance = 90;
-        available = 90;
-      }
-      return {
-        leave_type_name: type.name,
-        opening_balance,
-        used,
-        adjustments,
-        available,
-      };
-    });
-
   // Fetch all diary entries for this teacher
   const [allEntries, setAllEntries] = useState([]);
   useEffect(() => {
