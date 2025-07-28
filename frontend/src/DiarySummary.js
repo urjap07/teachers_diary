@@ -85,12 +85,14 @@ export default function DiarySummary({ userId }) {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     return y === Number(selectedYear) && m === selectedMonth;
   });
-  // const filteredTimeOff = timeOff.filter(t => {
-  //   if (!t.date) return false;
-  //   const d = new Date(t.date);
-  //   const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  //   return ym === selectedMonth;
-  // });
+  // Filter leaves (time-off) by selected year and month
+  const filteredLeaves = leaves.filter(l => {
+    if (!l.date) return false;
+    const d = new Date(l.date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return y === Number(selectedYear) && m === selectedMonth;
+  });
 
   useEffect(() => {
     // Fetch only this teacher's diary entries
@@ -123,7 +125,7 @@ export default function DiarySummary({ userId }) {
 
   // Group by course_name, semester, topic_covered for lectures breakdown
   const topicGroups = {};
-  entries.forEach(e => {
+  filteredEntries.forEach(e => {
     const key = `${e.course_name}|${e.semester}|${e.topic_covered}`;
     if (!topicGroups[key]) {
       topicGroups[key] = {
@@ -413,12 +415,12 @@ export default function DiarySummary({ userId }) {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {filteredEntries.length === 0 ? (
+              {filteredLeaves.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="text-center py-4 text-gray-400">No time-off records</td>
                 </tr>
               ) : (
-                filteredEntries.map((l, idx) => (
+                filteredLeaves.map((l, idx) => (
                   <tr key={idx}>
                     <td className="px-4 py-2">{new Date(l.date).toLocaleDateString()}</td>
                     <td className="px-4 py-2">{l.days}</td>

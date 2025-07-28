@@ -91,6 +91,7 @@ export default function TeacherDashboard({ userId }) {
   const [leaveBalances, setLeaveBalances] = useState([]);
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [showLeaveBalances, setShowLeaveBalances] = useState(false);
+  const [leaves, setLeaves] = useState([]);
   useEffect(() => {
     fetch(`http://localhost:5000/api/leave-balances?user_id=${userId}`)
       .then(res => res.json())
@@ -98,7 +99,19 @@ export default function TeacherDashboard({ userId }) {
     fetch('http://localhost:5000/api/leave-types')
       .then(res => res.json())
       .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+    fetch(`http://localhost:5000/api/leaves?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => setLeaves(Array.isArray(data) ? data : []));
   }, [userId]);
+  const currentYear = new Date().getFullYear();
+
+  const getLatestStatusForType = (leaveTypeId) => {
+    const filtered = leaves
+      .filter(l => l.leave_type_id === leaveTypeId && new Date(l.date || l.start_date).getFullYear() === currentYear)
+      .sort((a, b) => new Date(b.date || b.start_date) - new Date(a.date || a.start_date));
+    return filtered.length > 0 ? filtered[0].status : null;
+  };
+
   const mergedBalances = leaveTypes
     .filter(type => [
       'Casual Leave (CL)',
@@ -310,18 +323,74 @@ export default function TeacherDashboard({ userId }) {
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {mergedBalances.map((b, idx) => (
-                    <tr key={idx}>
-                      <td className="px-4 py-2 font-semibold text-blue-800">{b.leave_type_name}</td>
-                      <td className="px-4 py-2">{b.opening_balance}</td>
-                      <td className="px-4 py-2">{b.used}</td>
-                      <td className="px-4 py-2">{b.adjustments}</td>
-                      <td className="px-4 py-2 font-bold text-green-700">{b.available}</td>
-                    </tr>
-                  ))}
+                  {leaveTypes.filter(type => [
+                    'Casual Leave (CL)',
+                    'Sick Leave (SL)',
+                    'Earned Leave (EL)',
+                    'Leave Without Pay (LWP)',
+                    'Maternity Leave (ML)'
+                  ].includes(type.name)).map((type, idx) => {
+                    const bal = leaveBalances.find(b => b.leave_type_id === type.leave_type_id);
+                    let available = '-';
+                    let opening_balance = '-';
+                    let used = '-';
+                    let adjustments = '-';
+                    if (bal) {
+                      opening_balance = bal.opening_balance;
+                      used = bal.used;
+                      adjustments = bal.adjustments;
+                      const usedNum = parseFloat(bal.used) || 0;
+                      const adjNum = parseFloat(bal.adjustments) || 0;
+                      const usedFalsy = !bal.used || bal.used === '0' || bal.used === '0.00';
+                      const adjFalsy = !bal.adjustments || bal.adjustments === '0' || bal.adjustments === '0.00';
+                      if (
+                        (type.name === 'Leave Without Pay (LWP)' || type.name === 'Maternity Leave (ML)') &&
+                        (usedFalsy && adjFalsy)
+                      ) {
+                        available = bal.opening_balance;
+                      } else {
+                        available = (parseFloat(bal.opening_balance) - usedNum + adjNum).toFixed(2);
+                      }
+                    } else if (type.name === 'Leave Without Pay (LWP)') {
+                      opening_balance = 999;
+                      available = 999;
+                    } else if (type.name === 'Maternity Leave (ML)') {
+                      opening_balance = 90;
+                      available = 90;
+                    }
+                    const status = getLatestStatusForType(type.leave_type_id);
+                    let statusClass = '';
+                    let statusLabel = 'N/A';
+                    if (status === 'pending') {
+                      statusClass = 'bg-yellow-100 text-yellow-800 border border-yellow-300';
+                      statusLabel = 'pending';
+                    } else if (status === 'approved') {
+                      statusClass = 'bg-green-100 text-green-800 border border-green-300';
+                      statusLabel = 'approved';
+                    } else if (status === 'rejected') {
+                      statusClass = 'bg-red-100 text-red-800 border border-red-300';
+                      statusLabel = 'rejected';
+                    } else if (status === 'escalated') {
+                      statusClass = 'bg-blue-100 text-blue-800 border border-blue-300';
+                      statusLabel = 'escalated';
+                    }
+                    return (
+                      <tr key={idx}>
+                        <td className="px-4 py-2 font-semibold text-blue-800">{type.name}</td>
+                        <td className="px-4 py-2">{opening_balance}</td>
+                        <td className="px-4 py-2">{used}</td>
+                        <td className="px-4 py-2">{adjustments}</td>
+                        <td className="px-4 py-2 font-bold text-green-700">{available}</td>
+                        <td className="px-4 py-2">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${statusClass}`}>{statusLabel}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

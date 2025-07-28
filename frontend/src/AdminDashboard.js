@@ -330,10 +330,30 @@ export default function AdminDashboard() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedTimeOffMonth, setSelectedTimeOffMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  // --- Dynamic Year and Month Dropdowns for Time-Off Analytics ---
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const earliestYear = 2020;
+  const years = [];
+  for (let y = currentYear; y >= earliestYear; y--) years.push(y);
+  const months = [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+  const [selectedTimeOffYear, setSelectedTimeOffYear] = useState(currentYear);
+  const [selectedTimeOffMonth, setSelectedTimeOffMonth] = useState(String(currentMonth).padStart(2, '0'));
+  const filteredMonths = months.filter(m => Number(selectedTimeOffYear) < currentYear || Number(m.value) <= currentMonth);
   const [selectedTeacher, setSelectedTeacher] = useState(null); // NEW
   // Diary Log Table month filter state
   // Year, Month, and Week dropdowns for diary log
@@ -401,12 +421,13 @@ export default function AdminDashboard() {
 
   const totalLectures = entries.length;
   // Move this up before totalTimeOff is used
-  // Use the 'date' field for filtering leaves by month
+  // Use the 'date' field for filtering leaves by selected year and month
   const filteredLeaves = leaves.filter(l => {
     if (!l.date) return false;
     const d = new Date(l.date);
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return ym === selectedTimeOffMonth;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return y === Number(selectedTimeOffYear) && m === selectedTimeOffMonth;
   });
   // For the stat card:
   const totalTimeOff = filteredLeaves.reduce((sum, l) => sum + Number(l.days), 0);
@@ -449,7 +470,6 @@ export default function AdminDashboard() {
   }
 
   // Helper to get month options from timeOff data
-  const years = [2025]; // Now includes 2026
   const monthOptions = years.flatMap(year =>
     Array.from({ length: 12 }, (_, i) => {
       const month = String(i + 1).padStart(2, '0');
@@ -868,13 +888,31 @@ export default function AdminDashboard() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-blue-800">Time-Off Analytics</h2>
                 <div className="flex items-center gap-2">
-                  <label className="font-semibold text-blue-700">Select Month:</label>
+                  <label className="font-semibold text-blue-700">Select Year:</label>
+                  <select
+                    value={selectedTimeOffYear}
+                    onChange={e => {
+                      setSelectedTimeOffYear(Number(e.target.value));
+                      // If current year, clamp month if needed
+                      if (Number(e.target.value) < currentYear && Number(selectedTimeOffMonth) > 12) {
+                        setSelectedTimeOffMonth('12');
+                      } else if (Number(e.target.value) === currentYear && Number(selectedTimeOffMonth) > currentMonth) {
+                        setSelectedTimeOffMonth(String(currentMonth).padStart(2, '0'));
+                      }
+                    }}
+                    className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    {years.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <label className="font-semibold text-blue-700 ml-2">Select Month:</label>
                   <select
                     value={selectedTimeOffMonth}
                     onChange={e => setSelectedTimeOffMonth(e.target.value)}
                     className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
                   >
-                    {monthOptions.map(m => (
+                    {filteredMonths.map(m => (
                       <option key={m.value} value={m.value}>{m.label}</option>
                     ))}
                   </select>
