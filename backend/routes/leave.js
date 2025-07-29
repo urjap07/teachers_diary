@@ -221,8 +221,35 @@ router.get('/leave-requests/:id/audit', async (req, res) => {
 // Get all leaves
 router.get('/leaves', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM leaves ORDER BY created_at DESC');
-    res.json(rows);
+    const { hod_id } = req.query;
+    console.log('hod_id:', hod_id);
+    if (hod_id) {
+      // Only show leaves for teachers who share a course with the HOD (excluding the HOD's own leaves)
+      const [rows] = await db.query(`
+        SELECT l.*, u.name AS applicant_name, u.department AS applicant_department
+        FROM leaves l
+        JOIN users u ON l.user_id = u.id
+        WHERE u.role = 'teacher'
+          AND l.user_id IN (
+            SELECT DISTINCT tc2.teacher_id
+            FROM teacher_courses tc1
+            JOIN teacher_courses tc2 ON tc1.course_id = tc2.course_id
+            WHERE tc1.teacher_id = ? AND tc2.teacher_id != ?
+          )
+        ORDER BY l.created_at DESC
+      `, [hod_id, hod_id]);
+      console.log('Returned applicants:', rows.map(r => [r.user_id, r.applicant_name, r.status, r.reason, r.leave_type_id]));
+      console.log('Returned rows:', rows.length);
+      res.json(rows);
+    } else {
+      const [rows] = await db.query(`
+        SELECT l.*, u.name AS applicant_name, u.department AS applicant_department
+        FROM leaves l
+        JOIN users u ON l.user_id = u.id
+        ORDER BY l.created_at DESC
+      `);
+      res.json(rows);
+    }
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

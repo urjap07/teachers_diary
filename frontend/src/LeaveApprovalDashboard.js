@@ -33,7 +33,7 @@ function ActionModal({ open, action, onClose, onConfirm, leave, loading }) {
   );
 }
 
-export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
+export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, approverId }) {
   const [requests, setRequests] = useState([]);
   // const [leaveTypes, setLeaveTypes] = useState([]);
   const [userMap, setUserMap] = useState({});
@@ -43,14 +43,35 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
   const [refresh, setRefresh] = useState(0);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/leaves?ts=${Date.now()}`)
+    let url = 'http://localhost:5000/api/leaves?ts=' + Date.now();
+    if (user && user.is_hod) {
+      url += `&hod_id=${user.id}`;
+    }
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         console.log('Fetched leaves:', data);
         data.forEach(l => {
           console.log(`Leave id: ${l.id}, status: ${l.status}`);
         });
-        setRequests(Array.isArray(data) ? data : []);
+        
+        // Filter leaves based on user role
+        let filteredData = Array.isArray(data) ? data : [];
+        
+        if (user && user.is_hod && user.department) {
+          // HOD sees only their department's teachers' leaves
+          filteredData = data.filter(leave => leave.applicant_department === user.department);
+        } else if (user && user.is_principal) {
+          // Principal sees all leaves
+          console.log('Showing all leaves for Principal');
+          filteredData = data;
+        } else if (user && user.role === 'admin') {
+          // Admin sees all leaves
+          console.log('Showing all leaves for Admin');
+          filteredData = data;
+        }
+        
+        setRequests(filteredData);
       });
     // fetch('http://localhost:5000/api/leave-types')
     //   .then(res => res.json())
@@ -76,9 +97,9 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
     const leaveId = modal.leave.leave_id || modal.leave.id;
     let url = `http://localhost:5000/api/leave-requests/${leaveId}/${modal.action}`;
     let method = 'PUT';
-    let body = { approver_id: 2, remarks }; // TODO: use real approver_id
+    let body = { approver_id: approverId || user?.id, remarks };
     if (modal.action === 'escalate') {
-      body = { new_approver_id: 2, remarks }; // TODO: pick next authority
+      body = { new_approver_id: approverId || user?.id, remarks };
     }
     // Toggle logic: if already in target status, set to pending
     const currentStatus = modal.leave.status;
@@ -108,6 +129,14 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
 
   return (
     <div className="max-w-6xl mx-auto mt-8">
+      {user && (
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-lg font-semibold text-blue-800">
+            Logged in as: {user.name} {(user.is_hod == 1 || user.is_hod === true) ? '(HOD)' : (user.is_principal == 1 || user.is_principal === true) ? '(PRINCIPAL)' : user.role ? `(${user.role.toUpperCase()})` : ''}
+            {user.department && ` - ${user.department}`}
+          </h3>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-4 w-full">
         <h2 className="text-2xl font-bold text-blue-800">All Leave Records</h2>
         {setShowAddLeaveCategory && (

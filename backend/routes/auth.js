@@ -3,32 +3,23 @@ const router = express.Router();
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
+// Simple login endpoint for HOD/Principal/Admin/Teacher (email + password_hash only)
 router.post('/login', async (req, res) => {
-  const { identifier, password } = req.body;
-  if (!identifier || !password) {
-    return res.status(400).json({ message: 'All fields are required' });
-  }
-
+  const { username, password } = req.body;
   try {
-    // Try to find by mobile or email
     const [users] = await db.query(
-      'SELECT id, name, email, role, shift, password_hash, active FROM users WHERE email = ? OR mobile = ? LIMIT 1',
-      [identifier, identifier]
+      'SELECT id, name, email, role, department, is_hod, is_principal FROM users WHERE email = ? AND password_hash = ? LIMIT 1',
+      [username, password]
     );
     if (users.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const user = users[0];
-    // Check if user is active
-    if (user.active !== 1) {
-      return res.status(403).json({ message: 'Account is inactive. Please contact admin.' });
+    // Allow login if user is HOD, Principal, Admin, or Teacher
+    if (!(user.is_hod || user.is_principal || user.role === 'admin' || user.role === 'teacher')) {
+      return res.status(403).json({ message: 'Not authorized' });
     }
-    // Plain text password comparison (not secure)
-    if (password !== user.password_hash) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    // Success!
-    res.json({ message: 'Login successful', user: { id: user.id, name: user.name, role: user.role, shift: user.shift } });
+    res.json(user);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

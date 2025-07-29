@@ -3,6 +3,8 @@ import TimeOffForm from './TimeOffForm';
 import PublicHolidaysPanel from './PublicHolidaysPanel';
 import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 import ExcelJS from 'exceljs';
+import LeaveApprovalLoginModal from './LeaveApprovalLoginModal';
+import { useNavigate } from 'react-router-dom';
 
 const TABS = [
   { key: 'teachers', label: 'Teachers' },
@@ -1217,6 +1219,8 @@ export default function AdminManagementPanel() {
   const [deleteLeaveCategory, setDeleteLeaveCategory] = useState(null);
   const [isDeletingLeaveCategory, setIsDeletingLeaveCategory] = useState(false);
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (activeTab === 'teachers') {
       fetch('http://localhost:5000/api/teachers')
@@ -1956,7 +1960,18 @@ export default function AdminManagementPanel() {
             >
               Analytics
             </button>
-            
+            {(user?.is_hod || user?.is_principal || user?.role === 'admin') && (
+              <button
+                className="px-4 py-2 rounded-lg bg-orange-600 text-white font-semibold shadow hover:bg-orange-700 transition mb-4"
+                onClick={() => {
+                  setShowAnalytics(false);
+                  setShowLeaveBalances(false);
+                  navigate('/leave-approval-dashboard');
+                }}
+              >
+                Leave Approval Dashboard
+              </button>
+            )}
           </div>
         )}
         {activeTab === 'leaves' && user?.role === 'admin' && showLeaveBalances && (
@@ -2426,74 +2441,6 @@ export default function AdminManagementPanel() {
             <LeaveApprovalDashboard approverId={user.id} setShowAddLeaveCategory={setShowAddLeaveCategory} />
           </section>
         )}
-
-        {activeTab === 'leaves' && user?.role === 'admin' && (
-          <>
-            <div className="bg-white/90 border border-blue-200 rounded-xl shadow p-4 flex-1">
-              <table className="min-w-full divide-y divide-gray-200 mb-2">
-                <thead className="bg-blue-100">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {mergedBalances.map((b, idx) => (
-                    <tr key={idx}>
-                      <td className="px-4 py-2 font-semibold text-blue-800">{b.leave_type_name}</td>
-                      <td className="px-4 py-2">{b.opening_balance}</td>
-                      <td className="px-4 py-2">{b.used}</td>
-                      <td className="px-4 py-2">{b.adjustments}</td>
-                      <td className="px-4 py-2 font-bold text-green-700">{b.available}</td>
-                      <td className="px-4 py-2">
-                        <button
-                          className="px-3 py-1 rounded bg-yellow-600 text-white font-semibold hover:bg-yellow-700 text-xs shadow mr-2"
-                          onClick={() => {
-                            setAdjustModal({ open: true, row: b });
-                            setAdjustAmount('');
-                            setAdjustReason('');
-                            setAdjustError('');
-                          }}
-                        >
-                          Adjust
-                        </button>
-                        <button
-                          className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 text-xs shadow"
-                          onClick={async () => {
-                            setHistoryModal({ open: true, row: b, data: [] });
-                            setHistoryLoading(true);
-                            setHistoryError('');
-                            const userId = selectedTeacher ? selectedTeacher.id : user.id;
-                            const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
-                            const leaveTypeId = leaveTypes.find(t => t.name === b.leave_type_name)?.leave_type_id;
-                            try {
-                              const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
-                              if (res.ok) {
-                                const data = await res.json();
-                                setHistoryModal({ open: true, row: { ...b, teacherName }, data });
-                              } else {
-                                setHistoryError('Failed to fetch history');
-                              }
-                            } catch (err) {
-                              setHistoryError('Network error');
-                            }
-                            setHistoryLoading(false);
-                          }}
-                        >
-                          History
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
       </main>
       {isEditing && editTeacher && (
         <EditTeacherModal
@@ -2608,6 +2555,7 @@ export default function AdminManagementPanel() {
           onConfirm={() => handleDeleteLeaveCategory(deleteLeaveCategory.leave_type_id)}
         />
       )}
+      
     </div>
   );
 }
