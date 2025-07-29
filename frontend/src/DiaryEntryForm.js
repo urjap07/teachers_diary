@@ -30,13 +30,7 @@ export default function DiaryEntryForm({ userId }) {
   const [leaveStartDate, setLeaveStartDate] = useState('');
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveRemarks, setLeaveRemarks] = useState('');
-  const leaveTypes = [
-    { value: 'Casual Leave (CL)', label: 'Casual Leave (CL)', id: 1 },
-    { value: 'Sick Leave (SL)', label: 'Sick Leave (SL)', id: 2 },
-    { value: 'Earned Leave (EL)', label: 'Earned Leave (EL)', id: 3 },
-    { value: 'Leave Without Pay (LWP)', label: 'Leave Without Pay (LWP)', id: 4 },
-    { value: 'Maternity Leave (ML)', label: 'Maternity Leave (ML)', id: 5 }
-  ];
+  const [leaveTypes, setLeaveTypes] = useState([]);
 
   const navigate = useNavigate();
 
@@ -98,18 +92,31 @@ export default function DiaryEntryForm({ userId }) {
     }
   }, [form.subject]);
 
-  // Fetch subtopics when topic changes
   useEffect(() => {
     if (form.topic) {
       fetch(`http://localhost:5000/api/subtopics?topic_id=${form.topic}`)
         .then(res => res.json())
-        .then(data => setSubtopics(Array.isArray(data) ? data : []));
-      setForm(f => ({ ...f, subtopic: '' }));
+        .then(data => setSubtopics(data))
+        .catch(() => setSubtopics([]));
     } else {
       setSubtopics([]);
-      setForm(f => ({ ...f, subtopic: '' }));
     }
   }, [form.topic]);
+
+  useEffect(() => {
+    // Fetch leave types from database
+    fetch('http://localhost:5000/api/leave-types')
+      .then(res => res.json())
+      .then(data => {
+        const formattedTypes = Array.isArray(data) ? data.map(type => ({
+          value: type.name,
+          label: type.name,
+          id: type.leave_type_id
+        })) : [];
+        setLeaveTypes(formattedTypes);
+      })
+      .catch(() => setLeaveTypes([]));
+  }, []);
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));

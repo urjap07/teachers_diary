@@ -33,7 +33,7 @@ function ActionModal({ open, action, onClose, onConfirm, leave, loading }) {
   );
 }
 
-export default function LeaveApprovalDashboard() {
+export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
   const [requests, setRequests] = useState([]);
   // const [leaveTypes, setLeaveTypes] = useState([]);
   const [userMap, setUserMap] = useState({});
@@ -110,6 +110,15 @@ export default function LeaveApprovalDashboard() {
     <div className="max-w-6xl mx-auto mt-8">
       <div className="flex justify-between items-center mb-4 w-full">
         <h2 className="text-2xl font-bold text-blue-800">All Leave Records</h2>
+        {setShowAddLeaveCategory && (
+          <button
+            className="px-4 py-2 h-fit rounded-lg bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"
+            onClick={() => setShowAddLeaveCategory(true)}
+            style={{ marginTop: '8px' }}
+          >
+            <span className="text-lg font-bold">+</span> Add Leave Category
+          </button>
+        )}
       </div>
       {msg && <div className="mb-4 text-green-700 font-semibold text-center">{msg}</div>}
       <div className="bg-white rounded-xl shadow p-2 sm:p-4 md:p-8">
@@ -134,7 +143,7 @@ export default function LeaveApprovalDashboard() {
               ) : (
                 requests.map((req, idx) => (
                   <tr key={req.leave_id || req.id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
-                    <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-blue-900">{userMap[req.user_id] || req.user_id}</td>
+                    <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-blue-900">{req.applicant_name || userMap[req.user_id] || req.user_id}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-purple-700">{req.reason || '-'}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-4">{(req.from_date || req.start_date)?.slice(0,10)}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-4">{(req.to_date || req.end_date)?.slice(0,10)}</td>

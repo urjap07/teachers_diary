@@ -237,6 +237,92 @@ router.get('/leave-types', async (req, res) => {
   }
 });
 
+// Add new leave category
+router.post('/leave-types', async (req, res) => {
+  const { name, max_per_year, carry_forward, description } = req.body;
+  if (!name || !max_per_year || !description) {
+    return res.status(400).json({ message: 'name, max_per_year, and description are required' });
+  }
+  try {
+    const conn = await db.getConnection();
+    await conn.beginTransaction();
+    
+    // Insert the new leave type
+    const [result] = await conn.query(
+      'INSERT INTO leave_types (name, max_per_year, carry_forward, description) VALUES (?, ?, ?, ?)',
+      [name, max_per_year, carry_forward || 0, description]
+    );
+    
+    const newLeaveTypeId = result.insertId;
+    const currentYear = new Date().getFullYear();
+    
+    // Get all active teachers
+    const [teachers] = await conn.query('SELECT id FROM users WHERE role = "teacher" AND active = 1');
+    
+    // Create leave balance entries for all teachers for the current year
+    for (const teacher of teachers) {
+      await conn.query(
+        'INSERT INTO leave_balances (user_id, leave_type_id, year, opening_balance, used, adjustments) VALUES (?, ?, ?, ?, 0, 0)',
+        [teacher.id, newLeaveTypeId, currentYear, max_per_year]
+      );
+    }
+    
+    await conn.commit();
+    conn.release();
+    
+    res.json({ message: 'Leave category added successfully', leave_type_id: newLeaveTypeId });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Update leave category
+router.put('/leave-types/:id', async (req, res) => {
+  const leave_type_id = req.params.id;
+  const { name, max_per_year, carry_forward, description } = req.body;
+  if (!name || !max_per_year || !description) {
+    return res.status(400).json({ message: 'name, max_per_year, and description are required' });
+  }
+  try {
+    const [result] = await db.query(
+      'UPDATE leave_types SET name = ?, max_per_year = ?, carry_forward = ?, description = ? WHERE leave_type_id = ?',
+      [name, max_per_year, carry_forward || 0, description, leave_type_id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Leave category not found' });
+    }
+    res.json({ message: 'Leave category updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete leave category
+router.delete('/leave-types/:id', async (req, res) => {
+  const leave_type_id = req.params.id;
+  try {
+    // Check if this leave type is being used in any leave records
+    const [leaves] = await db.query('SELECT COUNT(*) as count FROM leaves WHERE leave_type_id = ?', [leave_type_id]);
+    if (leaves[0].count > 0) {
+      return res.status(400).json({ message: 'Cannot delete leave category that is being used in leave records' });
+    }
+    
+    // Check if this leave type is being used in any leave balances
+    const [balances] = await db.query('SELECT COUNT(*) as count FROM leave_balances WHERE leave_type_id = ?', [leave_type_id]);
+    if (balances[0].count > 0) {
+      return res.status(400).json({ message: 'Cannot delete leave category that has leave balances' });
+    }
+    
+    const [result] = await db.query('DELETE FROM leave_types WHERE leave_type_id = ?', [leave_type_id]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Leave category not found' });
+    }
+    res.json({ message: 'Leave category deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // Get leave balances for a user
 router.get('/leave-balances', async (req, res) => {
   const { user_id } = req.query;

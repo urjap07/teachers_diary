@@ -906,12 +906,238 @@ function ConfirmDeleteSubtopicModal({ subtopic, onClose, onConfirm }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
-        <button className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold" onClick={onClose} aria-label="Close">&times;</button>
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
         <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Subtopic</h2>
         <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{subtopic.name}</span>?</p>
         <div className="flex gap-4">
           <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
-          <button onClick={onConfirm} className="px-6 py-2 rounded-xl border border-red-500 bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
+          <button onClick={onConfirm} className="px-6 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddLeaveCategoryModal({ onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    name: '',
+    max_per_year: '',
+    carry_forward: 0,
+    description: ''
+  });
+  const [errors, setErrors] = useState({});
+
+  const handleChange = e => {
+    const { name, value, type, checked } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (checked ? 1 : 0) : value
+    }));
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Category name is required';
+    if (!form.max_per_year || form.max_per_year <= 0) errs.max_per_year = 'Max days per year must be greater than 0';
+    if (!form.description) errs.description = 'Description is required';
+    return errs;
+  };
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Add Leave Category</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Category Name</label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+              placeholder="e.g., Casual Leave (CL)"
+            />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Max Days Per Year</label>
+            <input
+              type="number"
+              name="max_per_year"
+              value={form.max_per_year}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+              placeholder="e.g., 12"
+            />
+            {errors.max_per_year && <p className="text-red-500 text-sm mt-1">{errors.max_per_year}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="flex items-center text-gray-800 mb-2 font-semibold">
+              <input
+                type="checkbox"
+                name="carry_forward"
+                checked={form.carry_forward === 1}
+                onChange={handleChange}
+                className="mr-2"
+              />
+              Can be carried forward to next year
+            </label>
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Description</label>
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+              rows="3"
+              placeholder="Brief description of this leave category"
+            />
+            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Add Category</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditLeaveCategoryModal({ category, onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    ...category,
+    carry_forward: category.carry_forward || 0
+  });
+  const [errors, setErrors] = useState({});
+
+  const handleChange = e => {
+    const { name, value, type, checked } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (checked ? 1 : 0) : value
+    }));
+  };
+
+  const validate = () => {
+    const errs = {};
+    if (!form.name) errs.name = 'Category name is required';
+    if (!form.max_per_year || form.max_per_year <= 0) errs.max_per_year = 'Max days per year must be greater than 0';
+    if (!form.description) errs.description = 'Description is required';
+    return errs;
+  };
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const errs = validate();
+    setErrors(errs);
+    if (Object.keys(errs).length === 0) {
+      onSubmit(form);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Edit Leave Category</h2>
+        <form onSubmit={handleSubmit} className="w-full">
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Category Name</label>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+            />
+            {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="block text-gray-800 mb-2 font-semibold">Max Days Per Year</label>
+            <input
+              type="number"
+              name="max_per_year"
+              value={form.max_per_year}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+            />
+            {errors.max_per_year && <p className="text-red-500 text-sm mt-1">{errors.max_per_year}</p>}
+          </div>
+          <div className="mb-4">
+            <label className="flex items-center text-gray-800 mb-2 font-semibold">
+              <input
+                type="checkbox"
+                name="carry_forward"
+                checked={form.carry_forward === 1}
+                onChange={handleChange}
+                className="mr-2"
+              />
+              Can be carried forward to next year
+            </label>
+          </div>
+          <div className="mb-6">
+            <label className="block text-gray-800 mb-2 font-semibold">Description</label>
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+              rows="3"
+            />
+            {errors.description && <p className="text-red-500 text-sm mt-1">{errors.description}</p>}
+          </div>
+          <button type="submit" className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition">Update Category</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDeleteLeaveCategoryModal({ category, onClose, onConfirm }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-red-700 mb-6">Delete Leave Category</h2>
+        <p className="mb-6 text-gray-700">Are you sure you want to delete <span className="font-bold">{category.name}</span>?</p>
+        <p className="mb-6 text-red-600 text-sm">This action cannot be undone and may affect existing leave records.</p>
+        <div className="flex gap-4">
+          <button onClick={onClose} className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200">Cancel</button>
+          <button onClick={onConfirm} className="px-6 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700">Delete</button>
         </div>
       </div>
     </div>
@@ -984,6 +1210,12 @@ export default function AdminManagementPanel() {
   const [leaves, setLeaves] = useState([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null);
+
+  const [showAddLeaveCategory, setShowAddLeaveCategory] = useState(false);
+  const [editLeaveCategory, setEditLeaveCategory] = useState(null);
+  const [isEditingLeaveCategory, setIsEditingLeaveCategory] = useState(false);
+  const [deleteLeaveCategory, setDeleteLeaveCategory] = useState(null);
+  const [isDeletingLeaveCategory, setIsDeletingLeaveCategory] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -1462,13 +1694,7 @@ export default function AdminManagementPanel() {
 
   // Merge leave types with balances so all types are shown, but exclude 'Other'
   const mergedBalances = leaveTypes
-    .filter(type => [
-      'Casual Leave (CL)',
-      'Sick Leave (SL)',
-      'Earned Leave (EL)',
-      'Leave Without Pay (LWP)',
-      'Maternity Leave (ML)'
-    ].includes(type.name))
+    .filter(type => type.name !== 'Other')
     .map(type => {
       const bal = leaveBalances.find(b => b.leave_type_id === type.leave_type_id);
       let available = '-';
@@ -1492,12 +1718,12 @@ export default function AdminManagementPanel() {
         } else {
           available = (parseFloat(bal.opening_balance) - usedNum + adjNum).toFixed(2);
         }
-      } else if (type.name === 'Leave Without Pay (LWP)') {
-        opening_balance = 999;
-        available = 999;
-      } else if (type.name === 'Maternity Leave (ML)') {
-        opening_balance = 90;
-        available = 90;
+      } else {
+        // If no balance record exists, use the max_per_year from the leave type
+        opening_balance = type.max_per_year;
+        used = '0.00';
+        adjustments = '0.00';
+        available = type.max_per_year;
       }
 
       return {
@@ -1593,26 +1819,77 @@ export default function AdminManagementPanel() {
     setAdjustLoading(false);
   };
 
-  // const handleHistory = async () => {
-  //   setHistoryLoading(true);
-  //   setHistoryError('');
-  //   const userId = selectedTeacher ? selectedTeacher.id : user.id;
-  //   const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
-  //   const year = new Date().getFullYear();
-  //   const leaveTypeId = leaveTypes.find(t => t.name === historyModal.row.leave_type_name)?.leave_type_id;
-  //   try {
-  //     const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
-  //     if (res.ok) {
-  //         const data = await res.json();
-  //         setHistoryModal({ open: true, row: { ...historyModal.row, teacherName }, data });
-  //     } else {
-  //         setHistoryError('Failed to fetch history');
-  //     }
-  //   } catch (err) {
-  //     setHistoryError('Network error');
-  //   }
-  //   setHistoryLoading(false);
-  // };
+  const handleAddLeaveCategory = async (form) => {
+    try {
+      const res = await fetch('http://localhost:5000/api/leave-types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        alert('Leave category added successfully!');
+        setShowAddLeaveCategory(false);
+        // Refresh leave types
+        fetch('http://localhost:5000/api/leave-types')
+          .then(res => res.json())
+          .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+        // Refresh leave balances for the current teacher
+        const userIdToFetch = selectedTeacher ? selectedTeacher.id : user.id;
+        fetch(`http://localhost:5000/api/leave-balances?user_id=${userIdToFetch}&year=${selectedYear}`)
+          .then(res => res.json())
+          .then(data => setLeaveBalances(Array.isArray(data) ? data : []));
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to add leave category');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
+  const handleEditLeaveCategory = async (form) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/leave-types/${form.leave_type_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        alert('Leave category updated successfully!');
+        setEditLeaveCategory(null);
+        setIsEditingLeaveCategory(false);
+        // Refresh leave types
+        fetch('http://localhost:5000/api/leave-types')
+          .then(res => res.json())
+          .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to update leave category');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
+  const handleDeleteLeaveCategory = async (id) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/leave-types/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('Leave category deleted successfully!');
+        setDeleteLeaveCategory(null);
+        setIsDeletingLeaveCategory(false);
+        // Refresh leave types
+        fetch('http://localhost:5000/api/leave-types')
+          .then(res => res.json())
+          .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to delete leave category');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
 
   // Calculate analytics for leave records
   const leaveTypeCounts = {};
@@ -1624,13 +1901,9 @@ export default function AdminManagementPanel() {
       totalLeaves += parseFloat(l.days || 1);
     });
   }
-  const leaveTypesToShow = [
-    'Casual Leave (CL)',
-    'Sick Leave (SL)',
-    'Earned Leave (EL)',
-    'Leave Without Pay (LWP)',
-    'Maternity Leave (ML)'
-  ];
+  const leaveTypesToShow = leaveTypes
+    .map(type => type.name)
+    .filter(name => name !== 'Other');
 
   // Fetch leave records for analytics when Leaves tab is active
   useEffect(() => {
@@ -1673,16 +1946,17 @@ export default function AdminManagementPanel() {
           <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center relative">
             <button
               className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition mb-4"
-              onClick={() => setShowLeaveBalances(v => !v)}
+              onClick={() => { setShowLeaveBalances(v => { if (!v) { setShowAnalytics(false); } return !v; }); }}
             >
               Leave Balances
             </button>
             <button
               className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold shadow hover:bg-purple-700 transition mb-4"
-              onClick={() => setShowAnalytics(v => !v)}
+              onClick={() => { setShowAnalytics(v => { if (!v) { setShowLeaveBalances(false); } return !v; }); }}
             >
               Analytics
             </button>
+            
           </div>
         )}
         {activeTab === 'leaves' && user?.role === 'admin' && showLeaveBalances && (
@@ -1888,7 +2162,7 @@ export default function AdminManagementPanel() {
           </div>
         )}
         {activeTab === 'leaves' && user?.role === 'admin' && showAnalytics && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
+          <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
             <div className="w-full flex flex-wrap gap-4">
               {leaveTypesToShow.map(type => (
                 <div
@@ -1910,49 +2184,12 @@ export default function AdminManagementPanel() {
                 <div className="text-xs text-gray-500 mt-1">All Types</div>
               </div>
             </div>
-            {/* Details table for selected card, always below the cards */}
-            {selectedAnalyticsType && (
-              <div className="mt-6 bg-white/90 border border-blue-200 rounded-xl shadow p-4">
-                <h3 className="text-lg font-bold text-blue-700 mb-4">
-                  {selectedAnalyticsType === 'Total' ? 'All Leave Records' : `${selectedAnalyticsType} Records`}
-                </h3>
-                <table className="min-w-full divide-y divide-gray-200 mb-2">
-                  <thead className="bg-blue-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Applicant</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">From</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">To</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Days</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {(selectedAnalyticsType === 'Total'
-                      ? leaves
-                      : leaves.filter(l => l.reason === selectedAnalyticsType)
-                    ).map((l, idx) => (
-                      <tr key={l.id || idx}>
-                        <td className="px-4 py-2">{l.applicant_name || l.name || '-'}</td>
-                        <td className="px-4 py-2">{l.reason}</td>
-                        <td className="px-4 py-2">{l.start_date || l.date}</td>
-                        <td className="px-4 py-2">{l.end_date || '-'}</td>
-                        <td className="px-4 py-2">{l.days}</td>
-                        <td className="px-4 py-2">{l.status}</td>
-                        <td className="px-4 py-2">{l.remarks || '-'}</td>
-                      </tr>
-                    ))}
-                    {(selectedAnalyticsType === 'Total'
-                      ? leaves.length === 0
-                      : leaves.filter(l => l.reason === selectedAnalyticsType).length === 0
-                    ) && (
-                      <tr><td colSpan={7} className="text-center py-4 text-gray-400">No records found.</td></tr>
-                    )}
-                  </tbody>
-                </table>
+            {/* --- Analytics/stat cards section --- */}
+            <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
+              <div className="w-full flex flex-wrap gap-4">
+                {/* ...stat cards here... */}
               </div>
-            )}
+            </div>
           </div>
         )}
         {activeTab === 'teachers' && (
@@ -2186,9 +2423,76 @@ export default function AdminManagementPanel() {
         )}
         {activeTab === 'leaves' && (
           <section>
-            {/* Only show the approval dashboard for supervisors/HR in the Leaves tab */}
-            <LeaveApprovalDashboard approverId={user.id} />
+            <LeaveApprovalDashboard approverId={user.id} setShowAddLeaveCategory={setShowAddLeaveCategory} />
           </section>
+        )}
+
+        {activeTab === 'leaves' && user?.role === 'admin' && (
+          <>
+            <div className="bg-white/90 border border-blue-200 rounded-xl shadow p-4 flex-1">
+              <table className="min-w-full divide-y divide-gray-200 mb-2">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {mergedBalances.map((b, idx) => (
+                    <tr key={idx}>
+                      <td className="px-4 py-2 font-semibold text-blue-800">{b.leave_type_name}</td>
+                      <td className="px-4 py-2">{b.opening_balance}</td>
+                      <td className="px-4 py-2">{b.used}</td>
+                      <td className="px-4 py-2">{b.adjustments}</td>
+                      <td className="px-4 py-2 font-bold text-green-700">{b.available}</td>
+                      <td className="px-4 py-2">
+                        <button
+                          className="px-3 py-1 rounded bg-yellow-600 text-white font-semibold hover:bg-yellow-700 text-xs shadow mr-2"
+                          onClick={() => {
+                            setAdjustModal({ open: true, row: b });
+                            setAdjustAmount('');
+                            setAdjustReason('');
+                            setAdjustError('');
+                          }}
+                        >
+                          Adjust
+                        </button>
+                        <button
+                          className="px-3 py-1 rounded bg-blue-600 text-white font-semibold hover:bg-blue-700 text-xs shadow"
+                          onClick={async () => {
+                            setHistoryModal({ open: true, row: b, data: [] });
+                            setHistoryLoading(true);
+                            setHistoryError('');
+                            const userId = selectedTeacher ? selectedTeacher.id : user.id;
+                            const teacherName = selectedTeacher ? selectedTeacher.name : user.name;
+                            const leaveTypeId = leaveTypes.find(t => t.name === b.leave_type_name)?.leave_type_id;
+                            try {
+                              const res = await fetch(`http://localhost:5000/api/leave-balances/adjustments?user_id=${userId}&leave_type_id=${leaveTypeId}&year=${selectedYear}`);
+                              if (res.ok) {
+                                const data = await res.json();
+                                setHistoryModal({ open: true, row: { ...b, teacherName }, data });
+                              } else {
+                                setHistoryError('Failed to fetch history');
+                              }
+                            } catch (err) {
+                              setHistoryError('Network error');
+                            }
+                            setHistoryLoading(false);
+                          }}
+                        >
+                          History
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </main>
       {isEditing && editTeacher && (
@@ -2283,6 +2587,26 @@ export default function AdminManagementPanel() {
       )}
       {subtopicModalTopic && (
         <SubtopicModal topic={subtopicModalTopic} onClose={() => setSubtopicModalTopic(null)} />
+      )}
+      {showAddLeaveCategory && (
+        <AddLeaveCategoryModal
+          onClose={() => setShowAddLeaveCategory(false)}
+          onSubmit={handleAddLeaveCategory}
+        />
+      )}
+      {isEditingLeaveCategory && editLeaveCategory && (
+        <EditLeaveCategoryModal
+          category={editLeaveCategory}
+          onClose={() => { setEditLeaveCategory(null); setIsEditingLeaveCategory(false); }}
+          onSubmit={handleEditLeaveCategory}
+        />
+      )}
+      {isDeletingLeaveCategory && deleteLeaveCategory && (
+        <ConfirmDeleteLeaveCategoryModal
+          category={deleteLeaveCategory}
+          onClose={() => { setDeleteLeaveCategory(null); setIsDeletingLeaveCategory(false); }}
+          onConfirm={() => handleDeleteLeaveCategory(deleteLeaveCategory.leave_type_id)}
+        />
       )}
     </div>
   );
