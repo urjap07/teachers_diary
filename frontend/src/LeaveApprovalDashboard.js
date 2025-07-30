@@ -69,6 +69,12 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
     let url = 'http://localhost:5000/api/leaves?ts=' + Date.now();
     if (currentUser && currentUser.is_hod) {
       url += `&hod_id=${currentUser.id}`;
+    } else if (currentUser && currentUser.is_principal) {
+      // Principal sees all leaves - no filtering needed
+      console.log('Principal - showing all leaves');
+    } else if (currentUser && currentUser.role === 'admin') {
+      // Admin sees all leaves - no filtering needed
+      console.log('Admin - showing all leaves');
     }
     fetch(url)
       .then(res => res.json())
@@ -78,23 +84,8 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
           console.log(`Leave id: ${l.id}, status: ${l.status}`);
         });
         
-        // Filter leaves based on user role
+        // Backend now handles filtering based on user role
         let filteredData = Array.isArray(data) ? data : [];
-        
-        if (currentUser && currentUser.is_hod && currentUser.department) {
-          // HOD sees only their department's teachers' leaves
-          filteredData = data.filter(leave => leave.applicant_department === currentUser.department);
-          console.log('HOD filtering by department:', currentUser.department);
-        } else if (currentUser && currentUser.is_principal) {
-          // Principal sees all leaves
-          console.log('Showing all leaves for Principal');
-          filteredData = data;
-        } else if (currentUser && currentUser.role === 'admin') {
-          // Admin sees all leaves
-          console.log('Showing all leaves for Admin');
-          filteredData = data;
-        }
-        
         setRequests(filteredData);
       });
     // fetch('http://localhost:5000/api/leave-types')
