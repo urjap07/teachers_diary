@@ -18,8 +18,19 @@ export default function DiaryEntryForm({ userId }) {
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [topics, setTopics] = useState([]);
+  const [subtopics, setSubtopics] = useState([]);
   const [showTimeOff, setShowTimeOff] = useState(false);
   const [isHoliday, setIsHoliday] = useState(false);
+  const [publicHolidays, setPublicHolidays] = useState([]);
+  const [isPublicHoliday, setIsPublicHoliday] = useState(false);
+  const [leaveMsg, setLeaveMsg] = useState('');
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveReason, setLeaveReason] = useState('');
+  const [leaveDays, setLeaveDays] = useState(1);
+  const [leaveStartDate, setLeaveStartDate] = useState('');
+  const [leaveEndDate, setLeaveEndDate] = useState('');
+  const [leaveRemarks, setLeaveRemarks] = useState('');
+  const [leaveTypes, setLeaveTypes] = useState([]);
 
   const navigate = useNavigate();
 
@@ -82,6 +93,32 @@ export default function DiaryEntryForm({ userId }) {
   }, [form.subject]);
 
   useEffect(() => {
+    if (form.topic) {
+      fetch(`http://localhost:5000/api/subtopics?topic_id=${form.topic}`)
+        .then(res => res.json())
+        .then(data => setSubtopics(data))
+        .catch(() => setSubtopics([]));
+    } else {
+      setSubtopics([]);
+    }
+  }, [form.topic]);
+
+  useEffect(() => {
+    // Fetch leave types from database
+    fetch('http://localhost:5000/api/leave-types')
+      .then(res => res.json())
+      .then(data => {
+        const formattedTypes = Array.isArray(data) ? data.map(type => ({
+          value: type.name,
+          label: type.name,
+          id: type.leave_type_id
+        })) : [];
+        setLeaveTypes(formattedTypes);
+      })
+      .catch(() => setLeaveTypes([]));
+  }, []);
+
+  useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
     if (user && user.role === 'teacher') {
       fetch(`http://localhost:5000/api/time-off?user_id=${user.id}`)
@@ -102,6 +139,35 @@ export default function DiaryEntryForm({ userId }) {
     }
   }, []);
 
+  // Fetch public holidays on mount
+  useEffect(() => {
+    fetch('http://localhost:5000/api/holidays')
+      .then(res => {
+        const contentType = res.headers.get('content-type');
+        if (res.ok && contentType && contentType.includes('application/json')) {
+          return res.json();
+        } else {
+          return [];
+        }
+      })
+      .then(data => setPublicHolidays(Array.isArray(data) ? data : []))
+      .catch(() => setPublicHolidays([]));
+  }, []);
+
+  // Check if selected date is a public holiday
+  useEffect(() => {
+    if (!form.date || publicHolidays.length === 0) {
+      setIsPublicHoliday(false);
+      return;
+    }
+    console.log('Comparing:', publicHolidays.map(h => h.date), 'with', form.date);
+    setIsPublicHoliday(
+      publicHolidays.some(
+        h => String(h.date).trim() === String(form.date).trim()
+      )
+    );
+  }, [form.date, publicHolidays]);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -116,6 +182,7 @@ export default function DiaryEntryForm({ userId }) {
     if (!form.date) errs.date = 'Date is required';
     if (!form.subject) errs.subject = 'Subject is required';
     if (!form.topic) errs.topic = 'Topic/Unit is required';
+    if (!form.subtopic) errs.subtopic = 'Subtopic is required';
     return errs;
   };
 
@@ -138,6 +205,7 @@ export default function DiaryEntryForm({ userId }) {
             date: form.date,
             subject_id: form.subject,
             topic_id: form.topic,
+            subtopic_id: form.subtopic,
             remarks: form.remarks,
           }),
         });
@@ -153,34 +221,164 @@ export default function DiaryEntryForm({ userId }) {
     }
   };
 
+  const shiftTimings = {
+    morning: { start: '08:00', end: '12:00' },
+    afternoon: { start: '12:01', end: '16:00' },
+    evening: { start: '16:01', end: '20:00' }
+  };
   const user = JSON.parse(localStorage.getItem('user'));
   const userName = user?.name || user?.username || '';
+  const shift = user?.shift;
+  const { start: shiftStart, end: shiftEnd } = shift ? shiftTimings[shift] : { start: undefined, end: undefined };
+  console.log('User:', user, 'Shift:', shift, 'Shift times:', shiftStart, shiftEnd);
+
+  function getTimeOptions(start, end) {
+    const options = [];
+    let [h, m] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    while (h < endH || (h === endH && m <= endM)) {
+      options.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      m += 30;
+      if (m >= 60) { h++; m = 0; }
+    }
+    return options;
+  }
+  const allowedTimes = (shiftStart && shiftEnd) ? getTimeOptions(shiftStart, shiftEnd) : [];
+
+
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-2xl rounded-2xl p-10 w-full max-w-lg relative flex flex-col items-center" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
         {userName && (
-          <div className="w-full flex justify-start items-center mb-2">
+          <div className="w-full flex justify-start items-center mb-2 relative">
             <span className="text-lg font-semibold text-blue-800">Welcome, {userName}!</span>
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <span className="inline-block w-6 h-6 rounded-full bg-blue-200 flex items-center justify-center">
+                <svg className="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+              </span>
+              <button
+                type="button"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-white/60 text-blue-900 font-medium text-sm shadow hover:bg-white/80 transition"
+                onClick={handleLogout}
+              >
+                <svg className="w-4 h-4 text-blue-700" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1" /></svg>
+                <span>Logout</span>
+              </button>
+            </div>
           </div>
         )}
-        <div className="flex justify-between items-center mb-6 w-full backdrop-blur-2xl bg-white/20 border border-white/30 shadow-2xl rounded-2xl p-5" style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18), 0 1.5px 8px 0 rgba(255,255,255,0.12)'}}>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 rounded-xl border border-white/30 bg-white/20 text-red-600 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/40 hover:text-red-700 transition"
-            style={{boxShadow: '0 4px 24px 0 rgba(255, 0, 0, 0.10)'}}
-          >
-            Logout
-          </button>
+        <div className="w-full flex justify-end items-center mb-6">
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border border-white/30 bg-white/20 text-blue-700 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/40 hover:text-blue-900 transition"
-            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}
-            onClick={() => setShowTimeOff(true)}
+            className="mt-2 px-4 py-2 rounded-lg bg-white/60 text-blue-900 font-semibold shadow hover:bg-white/80 transition"
+            onClick={() => setShowLeaveModal(v => !v)}
           >
-            + Add Time-Off
+            Apply for Leave
           </button>
         </div>
+        {leaveMsg && (
+          <div
+            className="mx-auto mb-6 p-4 bg-green-100 border-l-4 border-green-500 text-green-800 font-bold rounded-2xl shadow-2xl text-xl"
+            style={{ maxWidth: '400px', textAlign: 'center' }}
+          >
+            {leaveMsg}
+          </div>
+        )}
+        {showLeaveModal && (
+          <div className="mb-8 w-full flex justify-center">
+            <div
+              className="backdrop-blur-lg bg-white/40 border border-white/30 shadow-2xl rounded-2xl max-w-lg w-full min-h-[340px] p-8 flex flex-col items-center"
+              style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)', border: '1.5px solid rgba(255,255,255,0.18)' }}
+            >
+              <h2 className="text-2xl font-bold mb-8 text-blue-900 drop-shadow">Apply for Leave</h2>
+              <label className="block text-gray-800 mb-2 font-semibold">Reason</label>
+              <select
+                value={leaveReason}
+                onChange={e => setLeaveReason(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-4 mt-4"
+              >
+                <option value="">Select reason</option>
+                {leaveTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+              <label className="block text-gray-800 mb-2 font-semibold mt-2">Number of Days</label>
+              <input
+                type="number"
+                min="0.5"
+                step="0.5"
+                value={leaveDays}
+                onChange={e => setLeaveDays(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
+              />
+              <label className="block text-gray-800 mb-2 font-semibold mt-2">Start Date</label>
+              <input
+                type="date"
+                value={leaveStartDate}
+                onChange={e => setLeaveStartDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
+              />
+              <label className="block text-gray-800 mb-2 font-semibold mt-2">End Date</label>
+              <input
+                type="date"
+                value={leaveEndDate}
+                onChange={e => setLeaveEndDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
+              />
+              <label className="block text-gray-800 mb-2 font-semibold mt-2">Remarks</label>
+              <textarea
+                value={leaveRemarks}
+                onChange={e => setLeaveRemarks(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner mb-6"
+                placeholder="Enter remarks (optional)"
+              />
+              <div className="flex-grow" />
+              <div className="flex gap-6 mb-8 justify-center">
+                <button
+                  className="px-6 py-2 rounded-lg backdrop-blur-md bg-white/30 border border-white/40 shadow-md text-gray-900 hover:bg-white/50 transition font-semibold"
+                  onClick={() => setShowLeaveModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="px-6 py-2 rounded-lg backdrop-blur-md bg-blue-400/30 border border-blue-200/40 shadow-md text-blue-900 font-semibold hover:bg-blue-400/50 hover:text-white transition"
+                  onClick={async () => {
+                    if (!leaveReason || !leaveDays || !leaveStartDate || !leaveEndDate) return;
+                    const selectedType = leaveTypes.find(t => t.value === leaveReason);
+                    const leave_type_id = selectedType ? selectedType.id : null;
+                    try {
+                      const res = await fetch('http://localhost:5000/api/leaves', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          user_id: userId,
+                          start_date: leaveStartDate,
+                          end_date: leaveEndDate,
+                          reason: leaveReason,
+                          days: leaveDays,
+                          remarks: leaveRemarks,
+                          leave_type_id
+                        })
+                      });
+                      if (res.ok) {
+                        setLeaveMsg('Leave applied successfully!');
+                      } else {
+                        setLeaveMsg('Failed to apply for leave.');
+                      }
+                    } catch {
+                      setLeaveMsg('Failed to apply for leave.');
+                    }
+                    setShowLeaveModal(false);
+                    setTimeout(() => setLeaveMsg(''), 1500);
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Time-Off Modal */}
         {showTimeOff && (
           <div className="absolute inset-0 bg-black bg-opacity-40 flex items-start justify-center pt-40 z-50">
@@ -202,8 +400,13 @@ export default function DiaryEntryForm({ userId }) {
             Today is a holiday for you. No diary entry required.
           </div>
         )}
+        {isPublicHoliday && (
+          <div className="mb-6 p-4 bg-red-100 border-l-4 border-red-500 text-red-800 font-semibold rounded">
+            Today is a public holiday. Diary entry is not allowed.
+          </div>
+        )}
         <div className="backdrop-blur-lg bg-white/30 border border-white/40 shadow-lg rounded-2xl p-8 w-full mb-4" style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)'}}>
-          <form onSubmit={handleSubmit} className="w-full" style={{ opacity: isHoliday ? 0.5 : 1, pointerEvents: isHoliday ? 'none' : 'auto' }}>
+          <form onSubmit={handleSubmit} className="w-full" style={{ opacity: isHoliday || isPublicHoliday ? 0.5 : 1, pointerEvents: isHoliday || isPublicHoliday ? 'none' : 'auto' }}>
             <div className="mb-4">
               <label className="block text-gray-800 mb-2 font-semibold">Course</label>
               <select
@@ -252,24 +455,32 @@ export default function DiaryEntryForm({ userId }) {
             <div className="mb-4 flex gap-4">
               <div className="w-1/2">
                 <label className="block text-gray-800 mb-2 font-semibold">Start Time</label>
-                <input
-                  type="time"
+                <select
                   name="startTime"
                   value={form.startTime}
                   onChange={handleChange}
                   className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.startTime ? 'ring-2 ring-red-400' : ''}`}
-                />
+                >
+                  <option value="">Select start time</option>
+                  {allowedTimes.map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
                 {errors.startTime && <p className="text-red-500 text-sm mt-1">{errors.startTime}</p>}
               </div>
               <div className="w-1/2">
                 <label className="block text-gray-800 mb-2 font-semibold">End Time</label>
-                <input
-                  type="time"
+                <select
                   name="endTime"
                   value={form.endTime}
                   onChange={handleChange}
                   className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.endTime ? 'ring-2 ring-red-400' : ''}`}
-                />
+                >
+                  <option value="">Select end time</option>
+                  {allowedTimes.map(time => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
                 {errors.endTime && <p className="text-red-500 text-sm mt-1">{errors.endTime}</p>}
               </div>
             </div>
@@ -313,6 +524,21 @@ export default function DiaryEntryForm({ userId }) {
                 ))}
               </select>
               {errors.topic && <p className="text-red-500 text-sm mt-1">{errors.topic}</p>}
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-800 mb-2 font-semibold">Subtopic/Unit/Chapter</label>
+              <select
+                name="subtopic"
+                value={form.subtopic || ''}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.subtopic ? 'ring-2 ring-red-400' : ''}`}
+              >
+                <option value="">Select subtopic</option>
+                {subtopics.map(sub => (
+                  <option key={sub.id} value={sub.id}>{sub.name}</option>
+                ))}
+              </select>
+              {errors.subtopic && <p className="text-red-500 text-sm mt-1">{errors.subtopic}</p>}
             </div>
             <div className="mb-6">
               <label className="block text-gray-800 mb-2 font-semibold">Remarks</label>

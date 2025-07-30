@@ -5,6 +5,8 @@ import DiaryEntryForm from './DiaryEntryForm';
 import TeacherDashboard from './TeacherDashboard';
 import AdminDashboard from './AdminDashboard';
 import AdminManagementPanel from './AdminManagementPanel';
+import LeaveApprovalDashboard from './LeaveApprovalDashboard';
+import LeaveApprovalLoginPage from './LeaveApprovalLoginPage';
 
 function App() {
   const [user, setUserState] = useState(() => {
@@ -62,6 +64,14 @@ function App() {
               ? <AdminManagementPanel />
               : <Navigate to="/login" />
           }
+        />
+        <Route
+          path="/leave-approval-login"
+          element={<LeaveApprovalLoginPage />}
+        />
+        <Route
+          path="/leave-approval-dashboard"
+          element={<LeaveApprovalDashboard />}
         />
         <Route
           path="/"

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
+// import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 
 function calculateDuration(start, end) {
   if (!start || !end) return 0;
@@ -239,12 +241,88 @@ function getWeekNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
 }
 
+// Add ExportExcelModal definition
+function ExportExcelModal({ onClose, onExport }) {
+  const [option, setOption] = useState('topic');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('');
+  const currentYear = new Date().getFullYear();
+  return (
+    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-start justify-center pt-40 z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center min-h-[40vh]">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Export to Excel</h2>
+        <div className="mb-6 w-full">
+          <label className="block text-gray-800 mb-2 font-semibold">Export Option</label>
+          <select
+            value={option}
+            onChange={e => setOption(e.target.value)}
+            className="w-full px-4 py-3 rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 shadow-inner"
+          >
+            <option value="topic">Topic-wise</option>
+            <option value="course">Course-wise</option>
+            <option value="semester">Semester-wise</option>
+            <option value="date-range">Date Range</option>
+            <option value="month-wise">Month-wise</option>
+          </select>
+        </div>
+        {option === 'date-range' && (
+          <div className="mb-6 w-full flex gap-2">
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">Start Date</label>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">End Date</label>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+          </div>
+        )}
+        {option === 'month-wise' && (
+          <div className="mb-6 w-full flex gap-2">
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">Month</label>
+              <select value={month} onChange={e => setMonth(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="">Select</option>
+                {[...Array(12)].map((_, i) => (
+                  <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-800 mb-2 font-semibold">Year</label>
+              <select value={year} onChange={e => setYear(e.target.value)} className="w-full px-4 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400">
+                <option value="">Select</option>
+                {[...Array(5)].map((_, i) => (
+                  <option key={currentYear-i} value={currentYear-i}>{currentYear-i}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={() => onExport(option, { startDate, endDate, month, year })}
+          className="w-full py-3 rounded-xl border border-white/30 bg-blue-600/80 text-white font-bold shadow-lg hover:bg-blue-700/90 transition"
+        >Export</button>
+      </div>
+    </div>
+  );
+}
+
 // Helper: Get number of weeks in a month
 export default function AdminDashboard() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [entries, setEntries] = useState([]);
-  const [timeOff, setTimeOff] = useState([]);
+  const [leaves, setLeaves] = useState([]); // Use leaves instead of timeOff
   const [expandedCourse, setExpandedCourse] = useState(null);
   const [showCourseSummary, setShowCourseSummary] = useState(false); // NEW
   const [showTimeOffAnalytics, setShowTimeOffAnalytics] = useState(false); // NEW
@@ -252,10 +330,30 @@ export default function AdminDashboard() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedTimeOffMonth, setSelectedTimeOffMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+  // --- Dynamic Year and Month Dropdowns for Time-Off Analytics ---
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const earliestYear = 2020;
+  const years = [];
+  for (let y = currentYear; y >= earliestYear; y--) years.push(y);
+  const months = [
+    { value: '01', label: 'January' },
+    { value: '02', label: 'February' },
+    { value: '03', label: 'March' },
+    { value: '04', label: 'April' },
+    { value: '05', label: 'May' },
+    { value: '06', label: 'June' },
+    { value: '07', label: 'July' },
+    { value: '08', label: 'August' },
+    { value: '09', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' },
+  ];
+  const [selectedTimeOffYear, setSelectedTimeOffYear] = useState(currentYear);
+  const [selectedTimeOffMonth, setSelectedTimeOffMonth] = useState(String(currentMonth).padStart(2, '0'));
+  const filteredMonths = months.filter(m => Number(selectedTimeOffYear) < currentYear || Number(m.value) <= currentMonth);
   const [selectedTeacher, setSelectedTeacher] = useState(null); // NEW
   // Diary Log Table month filter state
   // Year, Month, and Week dropdowns for diary log
@@ -292,13 +390,14 @@ export default function AdminDashboard() {
   const [loadingCompletion, setLoadingCompletion] = useState(false);
   const [showLecturesByTeacher, setShowLecturesByTeacher] = useState(false);
   const [showAddTeacher, setShowAddTeacher] = useState(false);
-  const [teachers, setTeachers] = useState([]);
   const [editTeacher, setEditTeacher] = useState(null);
   const [deleteTeacher, setDeleteTeacher] = useState(null);
   const teachersTableRef = useRef(null);
   const containerRef = useRef(null);
   const diaryLogRowRefs = useRef([]);
   const teachersHeadingRef = useRef(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  // const [showApprovalDashboard, setShowApprovalDashboard] = useState(false);
 
   useEffect(() => {
     let url = 'http://localhost:5000/api/diary-entries';
@@ -311,20 +410,27 @@ export default function AdminDashboard() {
     fetch(url)
       .then(res => res.json())
       .then(data => setEntries(Array.isArray(data) ? data : []));
-    fetch('http://localhost:5000/api/time-off')
+    fetch('http://localhost:5000/api/leaves')
       .then(res => res.json())
-      .then(data => setTimeOff(Array.isArray(data) ? data : []));
+      .then(data => setLeaves(Array.isArray(data) ? data : []));
     fetchTeachers();
   }, [startDate, endDate]);
 
   const fetchTeachers = async () => {
-    const res = await fetch('http://localhost:5000/api/teachers');
-    const data = await res.json();
-    setTeachers(Array.isArray(data) ? data : []);
   };
 
   const totalLectures = entries.length;
-  const totalTimeOff = timeOff.reduce((sum, t) => sum + Number(t.days), 0);
+  // Move this up before totalTimeOff is used
+  // Use the 'date' field for filtering leaves by selected year and month
+  const filteredLeaves = leaves.filter(l => {
+    if (!l.date) return false;
+    const d = new Date(l.date);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return y === Number(selectedTimeOffYear) && m === selectedTimeOffMonth;
+  });
+  // For the stat card:
+  const totalTimeOff = filteredLeaves.reduce((sum, l) => sum + Number(l.days), 0);
   // Filter entries by selected month for course summary
   const filteredEntries = entries.filter(e => {
     if (!e.date) return false;
@@ -364,7 +470,6 @@ export default function AdminDashboard() {
   }
 
   // Helper to get month options from timeOff data
-  const years = [2025]; // Now includes 2026
   const monthOptions = years.flatMap(year =>
     Array.from({ length: 12 }, (_, i) => {
       const month = String(i + 1).padStart(2, '0');
@@ -375,14 +480,6 @@ export default function AdminDashboard() {
     })
   );
 
-  // Filter timeOff by selected month
-  const filteredTimeOff = timeOff.filter(t => {
-    if (!t.date) return false;
-    const d = new Date(t.date);
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return ym === selectedTimeOffMonth;
-  });
-
   // Build a userId-to-name map from entries
   const userIdToName = {};
   entries.forEach(e => {
@@ -391,18 +488,18 @@ export default function AdminDashboard() {
     }
   });
 
-  // Group filtered time-off by teacher
-  const timeOffByTeacher = {};
-  filteredTimeOff.forEach(t => {
-    if (!timeOffByTeacher[t.user_id]) {
-      timeOffByTeacher[t.user_id] = [];
+  // Group filtered leaves by teacher
+  const leavesByTeacher = {};
+  filteredLeaves.forEach(l => {
+    if (!leavesByTeacher[l.user_id]) {
+      leavesByTeacher[l.user_id] = [];
     }
-    timeOffByTeacher[t.user_id].push(t);
+    leavesByTeacher[l.user_id].push(l);
   });
 
   // Prepare analytics rows
-  const timeOffAnalyticsRows = Object.entries(timeOffByTeacher).map(([userId, offs]) => {
-    const totalDays = offs.reduce((sum, t) => sum + Number(t.days), 0);
+  const timeOffAnalyticsRows = Object.entries(leavesByTeacher).map(([userId, offs]) => {
+    const totalDays = offs.reduce((sum, l) => sum + Number(l.days), 0);
     return {
       userId,
       teacherName: userIdToName[userId] || userId,
@@ -569,18 +666,76 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleToggleActive = async (teacher) => {
-    const res = await fetch(`http://localhost:5000/api/teacher/${teacher.id}/active`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: teacher.active ? 0 : 1 }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      fetchTeachers();
-    } else {
-      alert(data.message || 'Failed to update status');
+  const handleExport = async (option, extra = {}) => {
+    if (option === 'date-range' || option === 'month-wise') {
+      // Backend export
+      let url = 'http://localhost:5000/api/export-excel?type=' + option;
+      if (option === 'date-range') {
+        url += `&startDate=${extra.startDate}&endDate=${extra.endDate}`;
+      } else if (option === 'month-wise') {
+        url += `&month=${extra.month}&year=${extra.year}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) {
+        alert('Failed to export Excel');
+        return;
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = 'diary_entries.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setShowExportModal(false);
+      return;
     }
+    let data = [];
+    if (option === 'topic') {
+      data = entries.map(e => ({
+        Date: e.date,
+        Teacher: e.teacher_name,
+        Course: e.course_name,
+        Semester: e.semester,
+        Subject: e.subject,
+        Topic: e.topic_covered,
+        'Lecture No.': e.lecture_number,
+        'Start Time': e.start_time,
+        'End Time': e.end_time,
+        Remarks: e.remarks
+      }));
+    } else if (option === 'course') {
+      data = entries.map(e => ({
+        Course: e.course_name,
+        Teacher: e.teacher_name,
+        Date: e.date,
+        Semester: e.semester,
+        Subject: e.subject,
+        Topic: e.topic_covered,
+        'Lecture No.': e.lecture_number,
+        'Start Time': e.start_time,
+        'End Time': e.end_time,
+        Remarks: e.remarks
+      }));
+    } else if (option === 'semester') {
+      data = entries.map(e => ({
+        Semester: e.semester,
+        Teacher: e.teacher_name,
+        Course: e.course_name,
+        Date: e.date,
+        Subject: e.subject,
+        Topic: e.topic_covered,
+        'Lecture No.': e.lecture_number,
+        'Start Time': e.start_time,
+        'End Time': e.end_time,
+        Remarks: e.remarks
+      }));
+    }
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Diary Entries');
+    XLSX.writeFile(wb, `diary_entries_${option}_wise.xlsx`);
+    setShowExportModal(false);
   };
 
   return (
@@ -599,10 +754,10 @@ export default function AdminDashboard() {
             Admin Management Panel
           </button>
           <button
-            onClick={() => setShowAddTeacher(true)}
+            onClick={() => setShowExportModal(true)}
             className="px-6 py-2 rounded-xl border border-white/30 bg-blue-600/80 text-white font-semibold shadow-lg backdrop-blur-xl hover:bg-blue-700/90 transition"
             style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700, fontSize: '1rem'}}>
-            + Add Teacher
+            Export to Excel
           </button>
           <button
             onClick={handleLogout}
@@ -733,13 +888,31 @@ export default function AdminDashboard() {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
                 <h2 className="text-2xl font-bold text-blue-800">Time-Off Analytics</h2>
                 <div className="flex items-center gap-2">
-                  <label className="font-semibold text-blue-700">Select Month:</label>
+                  <label className="font-semibold text-blue-700">Select Year:</label>
+                  <select
+                    value={selectedTimeOffYear}
+                    onChange={e => {
+                      setSelectedTimeOffYear(Number(e.target.value));
+                      // If current year, clamp month if needed
+                      if (Number(e.target.value) < currentYear && Number(selectedTimeOffMonth) > 12) {
+                        setSelectedTimeOffMonth('12');
+                      } else if (Number(e.target.value) === currentYear && Number(selectedTimeOffMonth) > currentMonth) {
+                        setSelectedTimeOffMonth(String(currentMonth).padStart(2, '0'));
+                      }
+                    }}
+                    className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    {years.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <label className="font-semibold text-blue-700 ml-2">Select Month:</label>
                   <select
                     value={selectedTimeOffMonth}
                     onChange={e => setSelectedTimeOffMonth(e.target.value)}
                     className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
                   >
-                    {monthOptions.map(m => (
+                    {filteredMonths.map(m => (
                       <option key={m.value} value={m.value}>{m.label}</option>
                     ))}
                   </select>
@@ -798,22 +971,20 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-100">
-                    {timeOffAnalyticsRows.length === 0 ? (
+                    {filteredLeaves.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-4 text-gray-400">No time-off records</td></tr>
                     ) : (
-                      timeOffAnalyticsRows
-                        .filter(row => !selectedTeacher || row.teacherName === selectedTeacher)
-                        .flatMap((row, idx) =>
-                          row.offs.map((t, i) => (
-                            <tr key={row.userId + '-' + i}>
-                              <td className="px-4 py-2 font-semibold text-blue-700">{row.teacherName}</td>
-                              <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
-                              <td className="px-4 py-2">{getMonthName(t.date)}</td>
-                              <td className="px-4 py-2">{t.days}</td>
-                              <td className="px-4 py-2">{t.reason || 'No reason'}</td>
-                            </tr>
-                          ))
-                        )
+                      filteredLeaves
+                        .filter(l => !selectedTeacher || userIdToName[l.user_id] === selectedTeacher)
+                        .map((l, idx) => (
+                          <tr key={l.id}>
+                            <td className="px-4 py-2 font-semibold text-blue-700">{userIdToName[l.user_id] || l.user_id}</td>
+                            <td className="px-4 py-2">{new Date(l.date).toLocaleDateString()}</td>
+                            <td className="px-4 py-2">{getMonthName(l.date)}</td>
+                            <td className="px-4 py-2">{l.days}</td>
+                            <td className="px-4 py-2">{l.reason || 'No reason'}</td>
+                          </tr>
+                        ))
                     )}
                   </tbody>
                 </table>
@@ -972,53 +1143,12 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-        <div className="w-full mb-8">
-          <h2 ref={teachersHeadingRef} className="text-2xl font-bold text-blue-800 mb-4">Teachers</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Name</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Email</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Mobile</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {teachers.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center py-4 text-gray-400">No teachers found.</td></tr>
-                ) : (
-                  teachers.map(t => (
-                    <tr key={t.id}>
-                      <td className="px-4 py-2">{t.name}</td>
-                      <td className="px-4 py-2">{t.email}</td>
-                      <td className="px-4 py-2">{t.mobile}</td>
-                      <td className="px-4 py-2 font-semibold {t.active ? 'text-green-700' : 'text-red-700'}">{t.active ? 'Active' : 'Inactive'}</td>
-                      <td className="px-4 py-2 flex gap-2">
-                        <button onClick={e => {
-                          if (e.target) {
-                            
-                            setEditTeacher(t);
-                          }
-                        }} className="px-3 py-1 rounded bg-blue-500 text-white font-semibold hover:bg-blue-700">Edit</button>
-                        <button onClick={e => {
-                          if (e.target) {
-                            
-                            setDeleteTeacher(t);
-                          }
-                        }} className="px-3 py-1 rounded bg-red-500 text-white font-semibold hover:bg-red-700">Delete</button>
-                        <button onClick={() => handleToggleActive(t)} className={`px-3 py-1 rounded font-semibold ${t.active ? 'bg-yellow-500 text-white hover:bg-yellow-700' : 'bg-green-500 text-white hover:bg-green-700'}`}>{t.active ? 'Make Inactive' : 'Make Active'}</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
         {editTeacher && <EditTeacherModal teacher={editTeacher} onClose={() => { setEditTeacher(null); }} onSubmit={handleEditTeacher} tableRef={teachersTableRef} containerRef={containerRef} diaryLogRowRefs={diaryLogRowRefs} diaryLogRowCount={filteredDiaryEntries.length} />}
         {deleteTeacher && <ConfirmDeleteModal teacher={deleteTeacher} onClose={() => { setDeleteTeacher(null); }} onConfirm={() => handleDeleteTeacher(deleteTeacher.id)} containerRef={containerRef} teachersHeadingRef={teachersHeadingRef} />}
+        {showExportModal && (
+          <ExportExcelModal onClose={() => setShowExportModal(false)} onExport={handleExport} />
+        )}
+
       </div>
     </div>
   );

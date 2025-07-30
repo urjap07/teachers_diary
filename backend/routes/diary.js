@@ -77,6 +77,63 @@ router.get('/diary-entries', async (req, res) => {
   }
 });
 
+// Export diary entries to Excel (date-range or month-wise)
+router.get('/export-excel', async (req, res) => {
+  const { type, startDate, endDate, month, year, user_id } = req.query;
+  try {
+    let query = `
+      SELECT de.id, de.user_id, de.course_id, de.lecture_number, de.start_time, de.end_time, de.date, de.subject, de.topic_covered, de.remarks, de.semester, de.created_at,
+             c.name AS course_name,
+             u.name AS teacher_name
+      FROM diary_entries de
+      LEFT JOIN courses c ON de.course_id = c.id
+      LEFT JOIN users u ON de.user_id = u.id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (user_id) {
+      query += ' AND de.user_id = ?';
+      params.push(user_id);
+    }
+    if (type === 'date-range' && startDate && endDate) {
+      query += ' AND de.date BETWEEN ? AND ?';
+      params.push(startDate, endDate);
+    } else if (type === 'month-wise' && month && year) {
+      query += ' AND MONTH(de.date) = ? AND YEAR(de.date) = ?';
+      params.push(month, year);
+    }
+    query += ' ORDER BY de.date DESC, de.start_time DESC';
+    const [rows] = await db.query(query, params);
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Diary Entries');
+    worksheet.columns = [
+      { header: 'ID', key: 'id', width: 8 },
+      { header: 'Teacher', key: 'teacher_name', width: 20 },
+      { header: 'Course', key: 'course_name', width: 20 },
+      { header: 'Semester', key: 'semester', width: 12 },
+      { header: 'Lecture #', key: 'lecture_number', width: 10 },
+      { header: 'Date', key: 'date', width: 14 },
+      { header: 'Start Time', key: 'start_time', width: 12 },
+      { header: 'End Time', key: 'end_time', width: 12 },
+      { header: 'Subject', key: 'subject', width: 20 },
+      { header: 'Topic', key: 'topic_covered', width: 20 },
+      { header: 'Remarks', key: 'remarks', width: 24 },
+      { header: 'Created At', key: 'created_at', width: 20 },
+    ];
+    rows.forEach(row => worksheet.addRow(row));
+    worksheet.getRow(1).font = { bold: true };
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="diary_entries.xlsx"');
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // --- Time-Off Endpoints ---
 // Get time-off entries for a specific teacher or all
 router.get('/time-off', async (req, res) => {
@@ -112,6 +169,143 @@ router.post('/time-off', async (req, res) => {
       [user_id, date, daysNum, reason || '']
     );
     res.json({ message: 'Time-off entry added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// --- Public Holidays Endpoints ---
+// Get all public holidays
+router.get('/holidays', async (req, res) => {
+  try {
+    const [holidays] = await db.query('SELECT * FROM holidays ORDER BY date ASC');
+    // Force date to YYYY-MM-DD string to avoid timezone issues
+    const holidaysFixed = holidays.map(h => ({
+      ...h,
+      date: h.date instanceof Date
+        ? (h.date.getFullYear() + '-' +
+           String(h.date.getMonth() + 1).padStart(2, '0') + '-' +
+           String(h.date.getDate()).padStart(2, '0'))
+        : h.date
+    }));
+    res.json(holidaysFixed);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Add a new public holiday (admin only)
+router.post('/holidays', async (req, res) => {
+  // Assume req.user.role is available and checked for 'admin'
+  // In production, use proper auth middleware
+  // if (!req.user || req.user.role !== 'admin') {
+  //   return res.status(403).json({ message: 'Forbidden' });
+  // }
+  const { date, name } = req.body;
+  if (!date || !name) {
+    return res.status(400).json({ message: 'Date and name are required' });
+  }
+  try {
+    // Ensure date is always a string in YYYY-MM-DD format
+    let dateStr = date;
+    if (date instanceof Date) {
+      dateStr = date.toISOString().slice(0, 10);
+    } else if (typeof date === 'string' && date.length > 10) {
+      dateStr = date.slice(0, 10);
+    }
+    await db.query('INSERT INTO holidays (date, name) VALUES (?, ?)', [dateStr, name]);
+    res.json({ message: 'Holiday added successfully' });
+  } catch (err) {
+    console.log('Error adding holiday:', err); // Log the error for debugging
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Edit a public holiday (admin only)
+router.put('/holidays/:id', async (req, res) => {
+  // if (!req.user || req.user.role !== 'admin') {
+  //   return res.status(403).json({ message: 'Forbidden' });
+  // }
+  const { id } = req.params;
+  const { date, name } = req.body;
+  if (!date || !name) {
+    return res.status(400).json({ message: 'Date and name are required' });
+  }
+  try {
+    await db.query('UPDATE holidays SET date=?, name=? WHERE id=?', [date, name, id]);
+    res.json({ message: 'Holiday updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete a public holiday (admin only)
+router.delete('/holidays/:id', async (req, res) => {
+  // if (!req.user || req.user.role !== 'admin') {
+  //   return res.status(403).json({ message: 'Forbidden' });
+  // }
+  const { id } = req.params;
+  try {
+    await db.query('DELETE FROM holidays WHERE id=?', [id]);
+    res.json({ message: 'Holiday deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// --- Leave Applications ---
+// Teachers can apply for leave
+router.post('/leaves', async (req, res) => {
+  const { user_id, start_date, end_date, reason, days, remarks, leave_type_id } = req.body;
+  if (!user_id || !start_date || !end_date || !leave_type_id) {
+    return res.status(400).json({ message: 'user_id, start_date, end_date, and leave_type_id are required' });
+  }
+  try {
+    const daysNum = days ? parseFloat(days) : 1;
+    // For backward compatibility, set date = start_date
+    await db.query(
+      'INSERT INTO leaves (user_id, start_date, end_date, date, reason, days, status, remarks, leave_type_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [user_id, start_date, end_date, start_date, reason || '', daysNum, 'pending', remarks || '', leave_type_id]
+    );
+    res.json({ message: 'Leave applied successfully!' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+router.get('/leaves', async (req, res) => {
+  const { user_id, year, hod_id } = req.query;
+  try {
+    let rows;
+    let baseQuery = `
+      SELECT leaves.*, users.name AS applicant_name, users.department AS applicant_department 
+      FROM leaves 
+      JOIN users ON leaves.user_id = users.id
+    `;
+    let where = [];
+    let params = [];
+    if (user_id) {
+      where.push('leaves.user_id = ?');
+      params.push(user_id);
+    }
+    if (year) {
+      where.push('YEAR(leaves.start_date) = ?');
+      params.push(year);
+    }
+    if (hod_id) {
+      // Get HOD's department and filter by it
+      const [hodUser] = await db.query('SELECT department FROM users WHERE id = ?', [hod_id]);
+      if (hodUser.length > 0 && hodUser[0].department) {
+        where.push('users.department = ?');
+        params.push(hodUser[0].department);
+      }
+    }
+    if (where.length > 0) {
+      baseQuery += ' WHERE ' + where.join(' AND ');
+    }
+    baseQuery += ' ORDER BY leaves.start_date DESC';
+    [rows] = await db.query(baseQuery, params);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
