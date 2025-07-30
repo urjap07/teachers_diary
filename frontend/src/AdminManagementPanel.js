@@ -1966,7 +1966,7 @@ export default function AdminManagementPanel() {
                 onClick={() => {
                   setShowAnalytics(false);
                   setShowLeaveBalances(false);
-                  navigate('/leave-approval-login');
+                  navigate('/leave-approval-dashboard');
                 }}
               >
                 Leave Approval Dashboard

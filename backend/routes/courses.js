@@ -24,22 +24,34 @@ router.get('/teacher-courses', async (req, res) => {
   }
 });
 
-// Assign courses to a teacher
+// Assign courses and subjects to a teacher
 router.post('/teacher-courses/assign', async (req, res) => {
-  const { teacher_id, course_ids } = req.body;
-  if (!teacher_id || !Array.isArray(course_ids)) {
-    return res.status(400).json({ message: 'teacher_id and course_ids are required' });
+  const { teacher_id, course_ids, subject_assignments } = req.body;
+  if (!teacher_id || !Array.isArray(course_ids) || !Array.isArray(subject_assignments)) {
+    return res.status(400).json({ message: 'teacher_id, course_ids, and subject_assignments are required' });
   }
+  const conn = await db.getConnection();
   try {
+    await conn.beginTransaction();
     // Remove all current assignments
-    await db.query('DELETE FROM teacher_courses WHERE teacher_id = ?', [teacher_id]);
-    // Add new assignments
+    await conn.query('DELETE FROM teacher_courses WHERE teacher_id = ?', [teacher_id]);
+    await conn.query('DELETE FROM teacher_subjects WHERE teacher_id = ?', [teacher_id]);
+    // Add new course assignments
     if (course_ids.length > 0) {
       const values = course_ids.map(cid => [teacher_id, cid]);
-      await db.query('INSERT INTO teacher_courses (teacher_id, course_id) VALUES ?', [values]);
+      await conn.query('INSERT INTO teacher_courses (teacher_id, course_id) VALUES ?', [values]);
     }
-    res.json({ message: 'Courses assigned successfully' });
+    // Add new subject assignments
+    if (subject_assignments.length > 0) {
+      const values = subject_assignments.map(a => [teacher_id, a.course_id, a.subject_id]);
+      await conn.query('INSERT INTO teacher_subjects (teacher_id, course_id, subject_id) VALUES ?', [values]);
+    }
+    await conn.commit();
+    conn.release();
+    res.json({ message: 'Courses and subjects assigned successfully' });
   } catch (err) {
+    await conn.rollback();
+    conn.release();
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });

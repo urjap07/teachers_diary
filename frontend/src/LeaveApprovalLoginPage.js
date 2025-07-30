@@ -22,9 +22,17 @@ export default function LeaveApprovalLoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
-      <div className="w-full max-w-md mx-auto">
-        <LeaveApprovalLoginModal onClose={() => navigate('/')} onLogin={handleLogin} />
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Leave Approval Login
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Sign in to access the leave approval dashboard
+          </p>
+        </div>
+        <LeaveApprovalLoginModal onClose={() => {}} onLogin={handleLogin} />
       </div>
     </div>
   );

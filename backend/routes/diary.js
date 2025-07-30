@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
+const ExcelJS = require('exceljs');
 
 router.post('/diary-entry', async (req, res) => {
   console.log('Received diary entry:', req.body);
@@ -274,14 +275,10 @@ router.post('/leaves', async (req, res) => {
 });
 
 router.get('/leaves', async (req, res) => {
-  const { user_id, year, hod_id } = req.query;
+  const { user_id, year } = req.query;
   try {
     let rows;
-    let baseQuery = `
-      SELECT leaves.*, users.name AS applicant_name, users.department AS applicant_department 
-      FROM leaves 
-      JOIN users ON leaves.user_id = users.id
-    `;
+    let baseQuery = 'SELECT leaves.*, users.name AS applicant_name FROM leaves JOIN users ON leaves.user_id = users.id';
     let where = [];
     let params = [];
     if (user_id) {
@@ -291,14 +288,6 @@ router.get('/leaves', async (req, res) => {
     if (year) {
       where.push('YEAR(leaves.start_date) = ?');
       params.push(year);
-    }
-    if (hod_id) {
-      // Get HOD's department and filter by it
-      const [hodUser] = await db.query('SELECT department FROM users WHERE id = ?', [hod_id]);
-      if (hodUser.length > 0 && hodUser[0].department) {
-        where.push('users.department = ?');
-        params.push(hodUser[0].department);
-      }
     }
     if (where.length > 0) {
       baseQuery += ' WHERE ' + where.join(' AND ');

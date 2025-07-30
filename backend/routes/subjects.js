@@ -59,6 +59,23 @@ router.get('/topics', async (req, res) => {
   }
 });
 
+// Add a new topic
+router.post('/topics', async (req, res) => {
+  const { name, subject_id } = req.body;
+  if (!name || !subject_id) {
+    return res.status(400).json({ message: 'Name and subject_id are required' });
+  }
+  try {
+    await db.query(
+      'INSERT INTO topics (name, subject_id) VALUES (?, ?)',
+      [name, subject_id]
+    );
+    res.json({ message: 'Topic added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // Update a subject
 router.put('/subjects/:id', async (req, res) => {
   const { id } = req.params;
@@ -74,6 +91,21 @@ router.put('/subjects/:id', async (req, res) => {
   }
 });
 
+// Update a topic
+router.put('/topics/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, subject_id } = req.body;
+  if (!name || !subject_id) {
+    return res.status(400).json({ message: 'Name and subject_id are required' });
+  }
+  try {
+    await db.query('UPDATE topics SET name=?, subject_id=? WHERE id=?', [name, subject_id, id]);
+    res.json({ message: 'Topic updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 // Delete a subject by ID
 router.delete('/subjects/:id', async (req, res) => {
   const { id } = req.params;
@@ -81,6 +113,18 @@ router.delete('/subjects/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM subjects WHERE id = ?', [id]);
     res.json({ message: 'Subject deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete a topic by ID
+router.delete('/topics/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: 'Topic ID is required' });
+  try {
+    await db.query('DELETE FROM topics WHERE id = ?', [id]);
+    res.json({ message: 'Topic deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -119,6 +163,67 @@ router.post('/teacher-subjects/assign', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   } finally {
     conn.release();
+  }
+});
+
+// Get subtopics for a topic
+router.get('/subtopics', async (req, res) => {
+  const { topic_id } = req.query;
+  if (!topic_id) {
+    return res.status(400).json({ message: 'topic_id is required' });
+  }
+  try {
+    const [subtopics] = await db.query(
+      'SELECT id, name, description, `order` FROM subtopics WHERE topic_id = ? ORDER BY `order` ASC, id ASC',
+      [topic_id]
+    );
+    res.json(subtopics);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Add a new subtopic
+router.post('/subtopics', async (req, res) => {
+  const { name, topic_id, description, order } = req.body;
+  if (!name || !topic_id) {
+    return res.status(400).json({ message: 'Name and topic_id are required' });
+  }
+  try {
+    await db.query(
+      'INSERT INTO subtopics (name, topic_id, description, `order`) VALUES (?, ?, ?, ?)',
+      [name, topic_id, description || '', order || null]
+    );
+    res.json({ message: 'Subtopic added successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Update a subtopic
+router.put('/subtopics/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, topic_id, description, order } = req.body;
+  if (!name || !topic_id) {
+    return res.status(400).json({ message: 'Name and topic_id are required' });
+  }
+  try {
+    await db.query('UPDATE subtopics SET name=?, topic_id=?, description=?, `order`=? WHERE id=?', [name, topic_id, description || '', order || null, id]);
+    res.json({ message: 'Subtopic updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Delete a subtopic by ID
+router.delete('/subtopics/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: 'Subtopic ID is required' });
+  try {
+    await db.query('DELETE FROM subtopics WHERE id = ?', [id]);
+    res.json({ message: 'Subtopic deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

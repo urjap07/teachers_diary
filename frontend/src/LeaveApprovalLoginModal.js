@@ -17,9 +17,9 @@ export default function LeaveApprovalLoginModal({ onClose, onLogin }) {
       });
       const data = await res.json();
       if (
-        res.ok && (data.user && (data.user.is_hod || data.user.is_principal || data.user.role === 'admin'))
+        res.ok && (data && (data.is_hod || data.is_principal || data.role === 'admin'))
       ) {
-        onLogin(data.user); // Pass the user object up
+        onLogin(data); // Pass the user object up
       } else {
         setError('Invalid credentials or not authorized for leave approval');
       }

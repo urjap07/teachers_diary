@@ -5,13 +5,19 @@ import DiaryEntryForm from './DiaryEntryForm';
 import TeacherDashboard from './TeacherDashboard';
 import AdminDashboard from './AdminDashboard';
 import AdminManagementPanel from './AdminManagementPanel';
-import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 import LeaveApprovalLoginPage from './LeaveApprovalLoginPage';
+import LeaveApprovalDashboardPage from './LeaveApprovalDashboardPage';
 
 function App() {
   const [user, setUserState] = useState(() => {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error);
+      localStorage.removeItem('user'); // Clear invalid data
+      return null;
+    }
   });
   console.log('App user:', user);
 
@@ -71,7 +77,7 @@ function App() {
         />
         <Route
           path="/leave-approval-dashboard"
-          element={<LeaveApprovalDashboard />}
+          element={<LeaveApprovalDashboardPage />}
         />
         <Route
           path="/"

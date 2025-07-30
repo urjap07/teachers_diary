@@ -9,7 +9,8 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  timezone: '+05:30' // Force IST for correct date handling
 });
 
 module.exports = pool.promise(); 

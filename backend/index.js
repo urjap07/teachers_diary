@@ -36,3 +36,10 @@ app.use('/api', leaveRoutes);
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+process.on('uncaughtException', function (err) {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', function (err) {
+  console.error('Unhandled Rejection:', err);
+});

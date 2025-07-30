@@ -3,38 +3,26 @@ const router = express.Router();
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
+// Simple login endpoint for HOD/Principal/Admin/Teacher (email + password_hash only)
 router.post('/login', async (req, res) => {
   const { identifier, password } = req.body;
-  if (!identifier || !password) {
-    return res.status(400).json({ message: 'All fields are required' });
-  }
-
+  console.log('Login attempt:', { identifier, password });
   try {
-    // Try to find by mobile or email
     const [users] = await db.query(
-      'SELECT * FROM users WHERE email = ? OR mobile = ? LIMIT 1',
-      [identifier, identifier]
+      'SELECT id, name, email, role, department, is_hod, is_principal FROM users WHERE email = ? AND password_hash = ? LIMIT 1',
+      [identifier, password]
     );
+    console.log('Query result:', users);
     if (users.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const user = users[0];
-    // Plain text password comparison (not secure)
-    if (password !== user.password_hash) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+    // Allow login if user is HOD, Principal, Admin, or Teacher
+    if (!(user.is_hod || user.is_principal || user.role === 'admin' || user.role === 'teacher')) {
+      return res.status(403).json({ message: 'Not authorized' });
     }
     // Success!
-    res.json({ 
-      message: 'Login successful', 
-      user: { 
-        id: user.id, 
-        name: user.name, 
-        role: user.role,
-        is_hod: user.is_hod || false,
-        is_principal: user.is_principal || false,
-        department: user.department || null
-      } 
-    });
+    res.json(user);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -43,23 +31,37 @@ router.post('/login', async (req, res) => {
 
 // Add a new teacher (admin only)
 router.post('/add-teacher', async (req, res) => {
-  const { name, email, mobile, password } = req.body;
-  if (!name || !email || !mobile || !password) {
+  const { name, email, mobile, password, courseIds, pDay } = req.body;
+  console.log('Received courseIds:', courseIds, 'pDay:', pDay);
+  if (!name || !email || !mobile || !password || !Array.isArray(courseIds) || typeof pDay === 'undefined') {
     return res.status(400).json({ message: 'All fields are required' });
   }
+  const conn = await db.getConnection();
   try {
+    await conn.beginTransaction();
     // Check if email or mobile already exists
-    const [existing] = await db.query('SELECT id FROM users WHERE email = ? OR mobile = ? LIMIT 1', [email, mobile]);
+    const [existing] = await conn.query('SELECT id FROM users WHERE email = ? OR mobile = ? LIMIT 1', [email, mobile]);
     if (existing.length > 0) {
+      conn.release();
       return res.status(409).json({ message: 'A user with this email or mobile already exists' });
     }
-    // Insert new teacher (plain text password for now)
-    await db.query(
-      'INSERT INTO users (name, email, mobile, password_hash, role) VALUES (?, ?, ?, ?, ?)',
-      [name, email, mobile, password, 'teacher']
+    // Insert new teacher with p_day
+    const [result] = await conn.query(
+      'INSERT INTO users (name, email, mobile, password_hash, role, p_day) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, email, mobile, password, 'teacher', parseInt(pDay, 10)]
     );
-    res.json({ message: 'Teacher added successfully' });
+    const teacherId = result.insertId;
+    // Assign courses
+    if (courseIds.length > 0) {
+      const values = courseIds.map(cid => [teacherId, cid]);
+      await conn.query('INSERT INTO teacher_courses (teacher_id, course_id) VALUES ?', [values]);
+    }
+    await conn.commit();
+    conn.release();
+    res.json({ message: 'Teacher added successfully!' });
   } catch (err) {
+    await conn.rollback();
+    conn.release();
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -97,10 +99,21 @@ router.put('/teacher/:id', async (req, res) => {
 // Delete teacher
 router.delete('/teacher/:id', async (req, res) => {
   const { id } = req.params;
+  const conn = await db.getConnection();
   try {
-    await db.query('DELETE FROM users WHERE id=? AND role=?', [id, 'teacher']);
+    await conn.beginTransaction();
+    // Remove course assignments
+    await conn.query('DELETE FROM teacher_courses WHERE teacher_id=?', [id]);
+    // Remove subject assignments if you have such a table
+    await conn.query('DELETE FROM teacher_subjects WHERE teacher_id=?', [id]);
+    // Remove the teacher
+    await conn.query('DELETE FROM users WHERE id=? AND role=?', [id, 'teacher']);
+    await conn.commit();
+    conn.release();
     res.json({ message: 'Teacher deleted successfully' });
   } catch (err) {
+    await conn.rollback();
+    conn.release();
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });

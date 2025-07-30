@@ -33,7 +33,7 @@ function ActionModal({ open, action, onClose, onConfirm, leave, loading }) {
   );
 }
 
-export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
+export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, approverId }) {
   const [requests, setRequests] = useState([]);
   // const [leaveTypes, setLeaveTypes] = useState([]);
   const [userMap, setUserMap] = useState({});
@@ -41,66 +41,41 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [refresh, setRefresh] = useState(0);
-  const [currentUser, setCurrentUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Get user from session storage
-  useEffect(() => {
-    const storedUser = sessionStorage.getItem('leaveApprovalUser');
-    if (storedUser) {
-      const userObj = JSON.parse(storedUser);
-      setCurrentUser(userObj);
-    }
-    setIsLoading(false);
-  }, []);
 
   useEffect(() => {
-    // Only redirect if we're not loading and no user is logged in
-    if (!isLoading && !currentUser) {
-      window.location.href = '/leave-approval-login';
-      return;
-    }
-    
-    // Don't fetch data if we're still loading or don't have a user
-    if (isLoading || !currentUser) {
-      return;
-    }
-    
     let url = 'http://localhost:5000/api/leaves?ts=' + Date.now();
-    if (currentUser && currentUser.is_hod) {
-      url += `&hod_id=${currentUser.id}`;
-    } else if (currentUser && currentUser.is_principal) {
-      // Principal sees all leaves - no filtering needed
-      console.log('Principal - showing all leaves');
-    } else if (currentUser && currentUser.role === 'admin') {
-      // Admin sees all leaves - no filtering needed
-      console.log('Admin - showing all leaves');
+    if (user && user.is_hod) {
+      url += `&hod_id=${user.id}`;
     }
     fetch(url)
       .then(res => res.json())
       .then(data => {
         console.log('Fetched leaves:', data);
-        data.forEach(l => {
-          console.log(`Leave id: ${l.id}, status: ${l.status}`);
-        });
         
-        // Backend now handles filtering based on user role
+        // Filter leaves based on user role
         let filteredData = Array.isArray(data) ? data : [];
+        
+        if (user && user.is_hod && user.department) {
+          // HOD sees only their department's teachers' leaves
+          filteredData = data.filter(leave => leave.applicant_department === user.department);
+        } else if (user && user.is_principal) {
+          // Principal sees all leaves
+          console.log('Showing all leaves for Principal');
+          filteredData = data;
+        } else if (user && user.role === 'admin') {
+          // Admin sees all leaves
+          console.log('Showing all leaves for Admin');
+          filteredData = data;
+        }
+        
         setRequests(filteredData);
       });
     // fetch('http://localhost:5000/api/leave-types')
     //   .then(res => res.json())
-    //   .then(data => setLeaveTypes(Array.isArray(data) ? data : []));
-    fetch('http://localhost:5000/api/teachers')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          const map = {};
-          data.forEach(u => { map[u.id] = u.name; });
-          setUserMap(map);
-        }
-      });
-  }, [refresh, currentUser, isLoading]);
+    //   .then(data => {
+    //     setLeaveTypes(data);
+    //   });
+  }, [refresh]);
 
   const handleAction = (leave, action) => {
     setModal({ open: true, action, leave });
@@ -112,9 +87,9 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
     const leaveId = modal.leave.leave_id || modal.leave.id;
     let url = `http://localhost:5000/api/leave-requests/${leaveId}/${modal.action}`;
     let method = 'PUT';
-    let body = { approver_id: currentUser?.id, remarks };
+    let body = { approver_id: approverId || user?.id, remarks };
     if (modal.action === 'escalate') {
-      body = { new_approver_id: currentUser?.id, remarks };
+      body = { new_approver_id: approverId || user?.id, remarks };
     }
     // Toggle logic: if already in target status, set to pending
     const currentStatus = modal.leave.status;
@@ -142,37 +117,14 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory }) {
     setTimeout(() => setMsg(''), 2000);
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('leaveApprovalUser');
-    window.location.href = '/leave-approval-login';
-  };
-
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <div className="max-w-6xl mx-auto mt-8">
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-6xl mx-auto mt-8">
-      {currentUser && (
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200 flex justify-between items-center">
+      {user && (
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
           <h3 className="text-lg font-semibold text-blue-800">
-            Logged in as: {currentUser.name} {(currentUser.is_hod == 1 || currentUser.is_hod === true) ? '(HOD)' : (currentUser.is_principal == 1 || currentUser.is_principal === true) ? '(PRINCIPAL)' : currentUser.role ? `(${currentUser.role.toUpperCase()})` : ''}
-            {currentUser.department && ` - ${currentUser.department}`}
+            Logged in as: {user.name} {(user.is_hod == 1 || user.is_hod === true) ? '(HOD)' : (user.is_principal == 1 || user.is_principal === true) ? '(PRINCIPAL)' : user.role ? `(${user.role.toUpperCase()})` : ''}
+            {user.department && ` - ${user.department}`}
           </h3>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition"
-          >
-            Logout
-          </button>
         </div>
       )}
       <div className="flex justify-between items-center mb-4 w-full">
