@@ -221,14 +221,22 @@ router.get('/leave-requests/:id/audit', async (req, res) => {
 // Get all leaves
 router.get('/leaves', async (req, res) => {
   try {
-    const { hod_id } = req.query;
-    console.log('hod_id:', hod_id);
-    if (hod_id) {
-      // Only show leaves for teachers who share a course with the HOD (excluding the HOD's own leaves)
+    const { hod_id, user_role } = req.query;
+    console.log('hod_id:', hod_id, 'user_role:', user_role);
+    
+    if (hod_id && user_role === 'hod') {
+      // For HODs: Show leaves for teachers who share courses with the HOD (excluding the HOD's own leaves)
+      // Include course information to show which courses are shared
       const [rows] = await db.query(`
-        SELECT l.*, u.name AS applicant_name, u.department AS applicant_department
+        SELECT 
+          l.*, 
+          u.name AS applicant_name, 
+          u.department AS applicant_department,
+          GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS shared_courses
         FROM leaves l
         JOIN users u ON l.user_id = u.id
+        JOIN teacher_courses tc2 ON u.id = tc2.teacher_id
+        JOIN courses c ON tc2.course_id = c.id
         WHERE u.role = 'teacher'
           AND l.user_id IN (
             SELECT DISTINCT tc2.teacher_id
@@ -236,16 +244,42 @@ router.get('/leaves', async (req, res) => {
             JOIN teacher_courses tc2 ON tc1.course_id = tc2.course_id
             WHERE tc1.teacher_id = ? AND tc2.teacher_id != ?
           )
+        GROUP BY l.id, l.user_id, l.start_date, l.end_date, l.reason, l.days, l.status, l.remarks, l.leave_type_id, l.created_at, l.updated_at, u.name, u.department
         ORDER BY l.created_at DESC
       `, [hod_id, hod_id]);
-      console.log('Returned applicants:', rows.map(r => [r.user_id, r.applicant_name, r.status, r.reason, r.leave_type_id]));
-      console.log('Returned rows:', rows.length);
+      console.log('HOD view - Returned applicants:', rows.map(r => [r.user_id, r.applicant_name, r.status, r.reason, r.leave_type_id, r.shared_courses]));
+      console.log('HOD view - Returned rows:', rows.length);
       res.json(rows);
-    } else {
+    } else if (user_role === 'admin' || user_role === 'principal') {
+      // For Admins/Principals: Show all leaves with course information
       const [rows] = await db.query(`
-        SELECT l.*, u.name AS applicant_name, u.department AS applicant_department
+        SELECT 
+          l.*, 
+          u.name AS applicant_name, 
+          u.department AS applicant_department,
+          GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS teacher_courses
         FROM leaves l
         JOIN users u ON l.user_id = u.id
+        LEFT JOIN teacher_courses tc ON u.id = tc.teacher_id
+        LEFT JOIN courses c ON tc.course_id = c.id
+        GROUP BY l.id, l.user_id, l.start_date, l.end_date, l.reason, l.days, l.status, l.remarks, l.leave_type_id, l.created_at, l.updated_at, u.name, u.department
+        ORDER BY l.created_at DESC
+      `);
+      console.log('Admin/Principal view - All leaves:', rows.length);
+      res.json(rows);
+    } else {
+      // Default: Show all leaves with course information (for backward compatibility)
+      const [rows] = await db.query(`
+        SELECT 
+          l.*, 
+          u.name AS applicant_name, 
+          u.department AS applicant_department,
+          GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS teacher_courses
+        FROM leaves l
+        JOIN users u ON l.user_id = u.id
+        LEFT JOIN teacher_courses tc ON u.id = tc.teacher_id
+        LEFT JOIN courses c ON tc.course_id = c.id
+        GROUP BY l.id, l.user_id, l.start_date, l.end_date, l.reason, l.days, l.status, l.remarks, l.leave_type_id, l.created_at, l.updated_at, u.name, u.department
         ORDER BY l.created_at DESC
       `);
       res.json(rows);

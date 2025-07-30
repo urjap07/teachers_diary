@@ -17,7 +17,7 @@ export default function LeaveApprovalLoginModal({ onClose, onLogin }) {
       });
       const data = await res.json();
       if (
-        res.ok && (data && (data.is_hod || data.is_principal || data.role === 'admin'))
+        res.ok && (data && ((data.is_hod === 1 || data.is_hod === true) || (data.is_principal === 1 || data.is_principal === true) || data.role === 'admin'))
       ) {
         onLogin(data); // Pass the user object up
       } else {

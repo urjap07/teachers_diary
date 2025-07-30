@@ -44,31 +44,28 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, 
 
   useEffect(() => {
     let url = 'http://localhost:5000/api/leaves?ts=' + Date.now();
-    if (user && user.is_hod) {
-      url += `&hod_id=${user.id}`;
+    
+    // Determine user role for API filtering
+    let userRole = 'default';
+    if (user && (user.is_hod === 1 || user.is_hod === true)) {
+      userRole = 'hod';
+      url += `&hod_id=${user.id}&user_role=${userRole}`;
+    } else if (user && (user.is_principal === 1 || user.is_principal === true)) {
+      userRole = 'principal';
+      url += `&user_role=${userRole}`;
+    } else if (user && user.role === 'admin') {
+      userRole = 'admin';
+      url += `&user_role=${userRole}`;
     }
+    
     fetch(url)
       .then(res => res.json())
       .then(data => {
         console.log('Fetched leaves:', data);
+        console.log('User role:', userRole, 'User:', user);
         
-        // Filter leaves based on user role
-        let filteredData = Array.isArray(data) ? data : [];
-        
-        if (user && user.is_hod && user.department) {
-          // HOD sees only their department's teachers' leaves
-          filteredData = data.filter(leave => leave.applicant_department === user.department);
-        } else if (user && user.is_principal) {
-          // Principal sees all leaves
-          console.log('Showing all leaves for Principal');
-          filteredData = data;
-        } else if (user && user.role === 'admin') {
-          // Admin sees all leaves
-          console.log('Showing all leaves for Admin');
-          filteredData = data;
-        }
-        
-        setRequests(filteredData);
+        // The backend now handles the filtering, so we can use the data directly
+        setRequests(Array.isArray(data) ? data : []);
       });
     // fetch('http://localhost:5000/api/leave-types')
     //   .then(res => res.json())
@@ -125,6 +122,7 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, 
             Logged in as: {user.name} {(user.is_hod == 1 || user.is_hod === true) ? '(HOD)' : (user.is_principal == 1 || user.is_principal === true) ? '(PRINCIPAL)' : user.role ? `(${user.role.toUpperCase()})` : ''}
             {user.department && ` - ${user.department}`}
           </h3>
+          
         </div>
       )}
       <div className="flex justify-between items-center mb-4 w-full">

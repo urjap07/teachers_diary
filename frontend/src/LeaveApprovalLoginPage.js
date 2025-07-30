@@ -10,7 +10,7 @@ export default function LeaveApprovalLoginPage() {
     const storedUser = sessionStorage.getItem('leaveApprovalUser');
     if (storedUser) {
       const userObj = JSON.parse(storedUser);
-      if (userObj && (userObj.is_hod || userObj.is_principal || userObj.role === 'admin')) {
+      if (userObj && ((userObj.is_hod === 1 || userObj.is_hod === true) || (userObj.is_principal === 1 || userObj.is_principal === true) || userObj.role === 'admin')) {
         navigate('/leave-approval-dashboard');
       }
     }
