@@ -3,7 +3,7 @@ import TimeOffForm from './TimeOffForm';
 import PublicHolidaysPanel from './PublicHolidaysPanel';
 import LeaveApprovalDashboard from './LeaveApprovalDashboard';
 import ExcelJS from 'exceljs';
-import LeaveApprovalLoginModal from './LeaveApprovalLoginModal';
+
 import { useNavigate } from 'react-router-dom';
 
 const TABS = [
@@ -1146,6 +1146,59 @@ function ConfirmDeleteLeaveCategoryModal({ category, onClose, onConfirm }) {
   );
 }
 
+function LeaveActionModal({ leave, onClose, onApprove, onReject }) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+        <button
+          className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
+          onClick={onClose}
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h2 className="text-2xl font-bold text-blue-800 mb-6">Leave Action</h2>
+        <div className="w-full mb-6">
+          <div className="bg-blue-50 rounded-lg p-4 mb-4">
+            <h3 className="font-semibold text-blue-800 mb-2">Leave Details:</h3>
+            <div className="space-y-2 text-sm">
+              <div><span className="font-semibold">Teacher:</span> {leave.teacher_name || leave.applicant_name}</div>
+              <div><span className="font-semibold">Course:</span> {leave.teacher_courses || leave.leave_course || 'N/A'}</div>
+              <div><span className="font-semibold">Start Date:</span> {new Date(leave.start_date).toLocaleDateString()}</div>
+              <div><span className="font-semibold">End Date:</span> {new Date(leave.end_date).toLocaleDateString()}</div>
+              <div><span className="font-semibold">Days:</span> {leave.days}</div>
+              <div><span className="font-semibold">Reason:</span> {leave.reason}</div>
+            </div>
+          </div>
+          <p className="text-gray-700 text-center mb-6">
+            What action would you like to take for this leave request?
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <button 
+            onClick={onClose} 
+            className="px-6 py-2 rounded-xl border border-gray-300 bg-gray-100 text-gray-700 font-semibold shadow hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={onReject} 
+            className="px-6 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700"
+          >
+            Reject
+          </button>
+          <button 
+            onClick={onApprove} 
+            className="px-6 py-2 rounded-xl bg-green-600 text-white font-semibold shadow hover:bg-green-700"
+          >
+            Approve
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminManagementPanel() {
   const [activeTab, setActiveTab] = useState('teachers');
   const [teachers, setTeachers] = useState([]);
@@ -1212,6 +1265,8 @@ export default function AdminManagementPanel() {
   const [leaves, setLeaves] = useState([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [selectedAnalyticsType, setSelectedAnalyticsType] = useState(null);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [showLeaveActionModal, setShowLeaveActionModal] = useState(false);
 
   const [showAddLeaveCategory, setShowAddLeaveCategory] = useState(false);
   const [editLeaveCategory, setEditLeaveCategory] = useState(null);
@@ -1895,6 +1950,70 @@ export default function AdminManagementPanel() {
     }
   };
 
+  const handleApproveLeave = async () => {
+    if (!selectedLeave) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/leaves/${selectedLeave.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'approved' }),
+      });
+      if (res.ok) {
+        alert('Leave approved successfully!');
+        setShowLeaveActionModal(false);
+        setSelectedLeave(null);
+        // Refresh leaves data
+        if (activeTab === 'leaves' && user?.role === 'admin') {
+          let url = 'http://localhost:5000/api/leaves';
+          const params = [];
+          if (selectedTeacher) params.push(`user_id=${selectedTeacher.id}`);
+          if (selectedYear) params.push(`year=${selectedYear}`);
+          if (params.length > 0) url += '?' + params.join('&');
+          fetch(url)
+            .then(res => res.json())
+            .then(data => setLeaves(Array.isArray(data) ? data : []));
+        }
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to approve leave');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
+  const handleRejectLeave = async () => {
+    if (!selectedLeave) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/leaves/${selectedLeave.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'rejected' }),
+      });
+      if (res.ok) {
+        alert('Leave rejected successfully!');
+        setShowLeaveActionModal(false);
+        setSelectedLeave(null);
+        // Refresh leaves data
+        if (activeTab === 'leaves' && user?.role === 'admin') {
+          let url = 'http://localhost:5000/api/leaves';
+          const params = [];
+          if (selectedTeacher) params.push(`user_id=${selectedTeacher.id}`);
+          if (selectedYear) params.push(`year=${selectedYear}`);
+          if (params.length > 0) url += '?' + params.join('&');
+          fetch(url)
+            .then(res => res.json())
+            .then(data => setLeaves(Array.isArray(data) ? data : []));
+        }
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to reject leave');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
   // Calculate analytics for leave records
   const leaveTypeCounts = {};
   let totalLeaves = 0;
@@ -1963,10 +2082,10 @@ export default function AdminManagementPanel() {
             {(user?.is_hod || user?.is_principal || user?.role === 'admin') && (
               <button
                 className="px-4 py-2 rounded-lg bg-orange-600 text-white font-semibold shadow hover:bg-orange-700 transition mb-4"
-                onClick={() => {
+                onClick={() => {     
                   setShowAnalytics(false);
-                  setShowLeaveBalances(false);
-                  navigate('/leave-approval-dashboard');
+                  setShowLeaveBalances(false);          
+                  navigate('/leave-approval-login');
                 }}
               >
                 Leave Approval Dashboard
@@ -2199,12 +2318,137 @@ export default function AdminManagementPanel() {
                 <div className="text-xs text-gray-500 mt-1">All Types</div>
               </div>
             </div>
-            {/* --- Analytics/stat cards section --- */}
-            <div className="w-full bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
-              <div className="w-full flex flex-wrap gap-4">
-                {/* ...stat cards here... */}
+            
+            {/* Detailed Analytics View */}
+            {selectedAnalyticsType && (
+              <div className="mt-6 bg-white/80 border border-blue-200 rounded-lg p-6 shadow">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-blue-800">
+                    {selectedAnalyticsType === 'Total' ? 'All Leave Records' : `${selectedAnalyticsType} Records`}
+                  </h3>
+                  <button
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition"
+                    onClick={() => setSelectedAnalyticsType(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
+                    <thead className="bg-blue-100">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Teacher</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Course</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Start Date</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">End Date</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Days</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Reason</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {(() => {
+                        let filteredLeaves = leaves;
+                        if (selectedAnalyticsType !== 'Total') {
+                          filteredLeaves = leaves.filter(l => l.reason === selectedAnalyticsType);
+                        }
+                        
+                        if (filteredLeaves.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan={7} className="text-center py-4 text-gray-400">
+                                No {selectedAnalyticsType === 'Total' ? 'leave' : selectedAnalyticsType} records found.
+                              </td>
+                            </tr>
+                          );
+                        }
+                        
+                        return filteredLeaves.map((leave, idx) => (
+                          <tr key={leave.id} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                            <td className="px-4 py-2 font-semibold text-blue-700">
+                              {leave.teacher_name || leave.applicant_name || leave.user_id}
+                            </td>
+                            <td className="px-4 py-2 font-semibold text-green-700">
+                              {leave.teacher_courses || leave.leave_course || 'N/A'}
+                            </td>
+                            <td className="px-4 py-2">
+                              {new Date(leave.start_date).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-2">
+                              {new Date(leave.end_date).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-2 font-semibold">
+                              {leave.days}
+                            </td>
+                            <td className="px-4 py-2">
+                              {leave.reason || 'No reason'}
+                            </td>
+                            <td className="px-4 py-2">
+                              <button
+                                className={`px-3 py-1 rounded font-semibold text-xs hover:opacity-80 ${
+                                  leave.status === 'approved' ? 'bg-green-500 text-white hover:bg-green-700' :
+                                  leave.status === 'rejected' ? 'bg-red-500 text-white hover:bg-red-700' :
+                                  'bg-yellow-500 text-white hover:bg-yellow-700'
+                                }`}
+                                onClick={() => {
+                                  setSelectedLeave(leave);
+                                  setShowLeaveActionModal(true);
+                                }}
+                              >
+                                {leave.status || 'pending'}
+                              </button>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Summary Statistics */}
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-100 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-blue-900">
+                      {(() => {
+                        let filteredLeaves = leaves;
+                        if (selectedAnalyticsType !== 'Total') {
+                          filteredLeaves = leaves.filter(l => l.reason === selectedAnalyticsType);
+                        }
+                        return filteredLeaves.length;
+                      })()}
+                    </div>
+                    <div className="text-sm text-blue-700">Total Records</div>
+                  </div>
+                  <div className="bg-green-100 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-900">
+                      {(() => {
+                        let filteredLeaves = leaves;
+                        if (selectedAnalyticsType !== 'Total') {
+                          filteredLeaves = leaves.filter(l => l.reason === selectedAnalyticsType);
+                        }
+                        return filteredLeaves.reduce((sum, l) => sum + parseFloat(l.days || 0), 0);
+                      })()}
+                    </div>
+                    <div className="text-sm text-green-700">Total Days</div>
+                  </div>
+                  <div className="bg-purple-100 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-purple-900">
+                      {(() => {
+                        let filteredLeaves = leaves;
+                        if (selectedAnalyticsType !== 'Total') {
+                          filteredLeaves = leaves.filter(l => l.reason === selectedAnalyticsType);
+                        }
+                        const approved = filteredLeaves.filter(l => l.status === 'approved').length;
+                        const total = filteredLeaves.length;
+                        return total > 0 ? Math.round((approved / total) * 100) : 0;
+                      })()}%
+                    </div>
+                    <div className="text-sm text-purple-700">Approval Rate</div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
         {activeTab === 'teachers' && (
@@ -2553,6 +2797,14 @@ export default function AdminManagementPanel() {
           category={deleteLeaveCategory}
           onClose={() => { setDeleteLeaveCategory(null); setIsDeletingLeaveCategory(false); }}
           onConfirm={() => handleDeleteLeaveCategory(deleteLeaveCategory.leave_type_id)}
+        />
+      )}
+      {showLeaveActionModal && selectedLeave && (
+        <LeaveActionModal
+          leave={selectedLeave}
+          onClose={() => { setShowLeaveActionModal(false); setSelectedLeave(null); }}
+          onApprove={handleApproveLeave}
+          onReject={handleRejectLeave}
         />
       )}
       

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function ActionModal({ open, action, onClose, onConfirm, leave, loading }) {
   const [remarks, setRemarks] = useState('');
@@ -36,18 +37,19 @@ function ActionModal({ open, action, onClose, onConfirm, leave, loading }) {
 export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, approverId }) {
   const [requests, setRequests] = useState([]);
   // const [leaveTypes, setLeaveTypes] = useState([]);
-  const [userMap, setUserMap] = useState({});
+  const [userMap] = useState({});
   const [modal, setModal] = useState({ open: false, action: '', leave: null });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let url = 'http://localhost:5000/api/leaves?ts=' + Date.now();
     
     // Determine user role for API filtering
     let userRole = 'default';
-    if (user && (user.is_hod === 1 || user.is_hod === true)) {
+    if (user && (user.is_hod === true)) {
       userRole = 'hod';
       url += `&hod_id=${user.id}&user_role=${userRole}`;
     } else if (user && (user.is_principal === 1 || user.is_principal === true)) {
@@ -72,10 +74,17 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, 
     //   .then(data => {
     //     setLeaveTypes(data);
     //   });
-  }, [refresh]);
+  }, [refresh, user]);
 
   const handleAction = (leave, action) => {
     setModal({ open: true, action, leave });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    sessionStorage.removeItem('currentUser');
+    navigate('/login');
   };
 
   const handleConfirm = async (remarks) => {
@@ -116,27 +125,37 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, 
 
   return (
     <div className="max-w-6xl mx-auto mt-8">
-      {user && (
-        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <h3 className="text-lg font-semibold text-blue-800">
-            Logged in as: {user.name} {(user.is_hod == 1 || user.is_hod === true) ? '(HOD)' : (user.is_principal == 1 || user.is_principal === true) ? '(PRINCIPAL)' : user.role ? `(${user.role.toUpperCase()})` : ''}
-            {user.department && ` - ${user.department}`}
-          </h3>
-          
-        </div>
-      )}
-      <div className="flex justify-between items-center mb-4 w-full">
-        <h2 className="text-2xl font-bold text-blue-800">All Leave Records</h2>
-        {setShowAddLeaveCategory && (
-          <button
-            className="px-4 py-2 h-fit rounded-lg bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"
-            onClick={() => setShowAddLeaveCategory(true)}
-            style={{ marginTop: '8px' }}
-          >
-            <span className="text-lg font-bold">+</span> Add Leave Category
-          </button>
-        )}
-      </div>
+             {user && (
+         <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+           <div className="flex justify-between items-center">
+             <h3 className="text-lg font-semibold text-blue-800">
+               Logged in as: {user.name} {(user.is_hod === true) ? '(HOD)' : (user.is_principal === 1 || user.is_principal === true) ? '(PRINCIPAL)' : user.role ? `(${user.role.toUpperCase()})` : ''}
+               {user.department && ` - ${user.department}`}
+             </h3>
+             <button
+               onClick={handleLogout}
+               className="px-4 py-2 rounded-lg bg-red-600 text-white font-semibold shadow hover:bg-red-700 transition flex items-center gap-2"
+             >
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h4a2 2 0 012 2v1" />
+               </svg>
+               Logout
+             </button>
+           </div>
+         </div>
+       )}
+             <div className="flex justify-between items-center mb-4 w-full">
+         <h2 className="text-2xl font-bold text-blue-800">All Leave Records</h2>
+         {setShowAddLeaveCategory && (
+           <button
+             className="px-4 py-2 h-fit rounded-lg bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition flex items-center gap-2"
+             onClick={() => setShowAddLeaveCategory(true)}
+             style={{ marginTop: '8px' }}
+           >
+             <span className="text-lg font-bold">+</span> Add Leave Category
+           </button>
+         )}
+       </div>
       {msg && <div className="mb-4 text-green-700 font-semibold text-center">{msg}</div>}
       <div className="bg-white rounded-xl shadow p-2 sm:p-4 md:p-8">
         <div className="overflow-x-auto w-full">
@@ -144,6 +163,7 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, 
             <thead>
               <tr className="bg-blue-50">
                 <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Applicant</th>
+                <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Courses</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">Type</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">From</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-4 text-left text-xs sm:text-xs font-bold text-blue-700 uppercase">To</th>
@@ -155,12 +175,15 @@ export default function LeaveApprovalDashboard({ setShowAddLeaveCategory, user, 
             <tbody>
               {requests.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-6 text-gray-400">No leave records</td>
+                  <td colSpan={8} className="text-center py-6 text-gray-400">No leave records</td>
                 </tr>
               ) : (
                 requests.map((req, idx) => (
                   <tr key={req.leave_id || req.id} className={idx % 2 === 0 ? 'bg-blue-50 hover:bg-blue-100 transition' : 'hover:bg-blue-50 transition'}>
                     <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-blue-900">{req.applicant_name || userMap[req.user_id] || req.user_id}</td>
+                                         <td className="px-2 sm:px-4 py-2 sm:py-4 text-sm text-gray-700 font-semibold">
+                       {req.leave_course || req.teacher_courses || req.shared_courses || '-'}
+                     </td>
                     <td className="px-2 sm:px-4 py-2 sm:py-4 font-semibold text-purple-700">{req.reason || '-'}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-4">{(req.from_date || req.start_date)?.slice(0,10)}</td>
                     <td className="px-2 sm:px-4 py-2 sm:py-4">{(req.to_date || req.end_date)?.slice(0,10)}</td>

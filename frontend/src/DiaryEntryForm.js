@@ -30,6 +30,7 @@ export default function DiaryEntryForm({ userId }) {
   const [leaveStartDate, setLeaveStartDate] = useState('');
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveRemarks, setLeaveRemarks] = useState('');
+  const [leaveSelectedCourse, setLeaveSelectedCourse] = useState('');
   const [leaveTypes, setLeaveTypes] = useState([]);
 
   const navigate = useNavigate();

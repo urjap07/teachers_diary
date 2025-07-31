@@ -9,7 +9,7 @@ router.post('/login', async (req, res) => {
   console.log('Login attempt:', { identifier, password });
   try {
     const [users] = await db.query(
-      'SELECT id, name, email, role, department, is_hod, is_principal FROM users WHERE email = ? AND password_hash = ? LIMIT 1',
+      'SELECT id, name, email, role, department, is_principal FROM users WHERE email = ? AND password_hash = ? LIMIT 1',
       [identifier, password]
     );
     console.log('Query result:', users);
@@ -17,10 +17,22 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     const user = users[0];
-    // Allow login if user is HOD, Principal, Admin, or Teacher
-    if (!(user.is_hod || user.is_principal || user.role === 'admin' || user.role === 'teacher')) {
+    
+    // Check if user is an HOD (has hod_id assigned in courses table)
+    const [hodCourses] = await db.query(
+      'SELECT COUNT(*) as hod_count FROM courses WHERE hod_id = ?',
+      [user.id]
+    );
+    const isHod = hodCourses[0].hod_count > 0;
+    
+    // Allow login if user is Principal, Admin, Teacher, or HOD
+    if (!(user.is_principal || user.role === 'admin' || user.role === 'teacher' || isHod)) {
       return res.status(403).json({ message: 'Not authorized' });
     }
+    
+    // Add is_hod flag to user object for frontend
+    user.is_hod = isHod;
+    
     // Success!
     res.json(user);
   } catch (err) {

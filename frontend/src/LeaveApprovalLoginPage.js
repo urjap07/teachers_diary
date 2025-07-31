@@ -1,22 +1,13 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import LeaveApprovalLoginModal from './LeaveApprovalLoginModal';
 
 export default function LeaveApprovalLoginPage() {
+  console.log('LeaveApprovalLoginPage component rendered');
   const navigate = useNavigate();
 
-  // Check if user is already logged in
-  useEffect(() => {
-    const storedUser = sessionStorage.getItem('leaveApprovalUser');
-    if (storedUser) {
-      const userObj = JSON.parse(storedUser);
-      if (userObj && ((userObj.is_hod === 1 || userObj.is_hod === true) || (userObj.is_principal === 1 || userObj.is_principal === true) || userObj.role === 'admin')) {
-        navigate('/leave-approval-dashboard');
-      }
-    }
-  }, [navigate]);
-
   const handleLogin = (userObj) => {
+    console.log('Login successful, navigating to dashboard');
     sessionStorage.setItem('leaveApprovalUser', JSON.stringify(userObj));
     navigate('/leave-approval-dashboard');
   };

@@ -480,13 +480,36 @@ export default function AdminDashboard() {
     })
   );
 
-  // Build a userId-to-name map from entries
+  // Build a userId-to-name map from entries and also fetch all teachers
   const userIdToName = {};
   entries.forEach(e => {
     if (e.user_id && e.teacher_name) {
       userIdToName[e.user_id] = e.teacher_name;
     }
   });
+
+  // Fetch all teachers to ensure we have names for all users
+  useEffect(() => {
+    const fetchAllTeachers = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/teachers');
+        const teachers = await response.json();
+        const teacherMap = {};
+        teachers.forEach(teacher => {
+          teacherMap[teacher.id] = teacher.name;
+        });
+        // Merge with existing mapping, prioritizing diary entries
+        Object.keys(teacherMap).forEach(id => {
+          if (!userIdToName[id]) {
+            userIdToName[id] = teacherMap[id];
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching teachers:', error);
+      }
+    };
+    fetchAllTeachers();
+  }, []);
 
   // Group filtered leaves by teacher
   const leavesByTeacher = {};
@@ -500,9 +523,10 @@ export default function AdminDashboard() {
   // Prepare analytics rows
   const timeOffAnalyticsRows = Object.entries(leavesByTeacher).map(([userId, offs]) => {
     const totalDays = offs.reduce((sum, l) => sum + Number(l.days), 0);
+    const teacherName = offs[0]?.teacher_name || offs[0]?.applicant_name || userId;
     return {
       userId,
-      teacherName: userIdToName[userId] || userId,
+      teacherName,
       totalDays,
       offs
     };
@@ -975,12 +999,12 @@ export default function AdminDashboard() {
                       <tr><td colSpan={5} className="text-center py-4 text-gray-400">No time-off records</td></tr>
                     ) : (
                       filteredLeaves
-                        .filter(l => !selectedTeacher || userIdToName[l.user_id] === selectedTeacher)
+                        .filter(l => !selectedTeacher || (l.teacher_name || l.applicant_name) === selectedTeacher)
                         .map((l, idx) => (
                           <tr key={l.id}>
-                            <td className="px-4 py-2 font-semibold text-blue-700">{userIdToName[l.user_id] || l.user_id}</td>
-                            <td className="px-4 py-2">{new Date(l.date).toLocaleDateString()}</td>
-                            <td className="px-4 py-2">{getMonthName(l.date)}</td>
+                            <td className="px-4 py-2 font-semibold text-blue-700">{l.teacher_name || l.applicant_name || l.user_id}</td>
+                            <td className="px-4 py-2">{new Date(l.start_date).toLocaleDateString()}</td>
+                            <td className="px-4 py-2">{getMonthName(l.start_date)}</td>
                             <td className="px-4 py-2">{l.days}</td>
                             <td className="px-4 py-2">{l.reason || 'No reason'}</td>
                           </tr>

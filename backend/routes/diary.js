@@ -257,7 +257,7 @@ router.delete('/holidays/:id', async (req, res) => {
 // --- Leave Applications ---
 // Teachers can apply for leave
 router.post('/leaves', async (req, res) => {
-  const { user_id, start_date, end_date, reason, days, remarks, leave_type_id } = req.body;
+  const { user_id, start_date, end_date, reason, days, remarks, leave_type_id, course_id } = req.body;
   if (!user_id || !start_date || !end_date || !leave_type_id) {
     return res.status(400).json({ message: 'user_id, start_date, end_date, and leave_type_id are required' });
   }
@@ -265,8 +265,8 @@ router.post('/leaves', async (req, res) => {
     const daysNum = days ? parseFloat(days) : 1;
     // For backward compatibility, set date = start_date
     await db.query(
-      'INSERT INTO leaves (user_id, start_date, end_date, date, reason, days, status, remarks, leave_type_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [user_id, start_date, end_date, start_date, reason || '', daysNum, 'pending', remarks || '', leave_type_id]
+      'INSERT INTO leaves (user_id, start_date, end_date, date, reason, days, status, remarks, leave_type_id, course_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [user_id, start_date, end_date, start_date, reason || '', daysNum, 'pending', remarks || '', leave_type_id, course_id || null]
     );
     res.json({ message: 'Leave applied successfully!' });
   } catch (err) {
@@ -275,27 +275,88 @@ router.post('/leaves', async (req, res) => {
 });
 
 router.get('/leaves', async (req, res) => {
-  const { user_id, year } = req.query;
+  const { user_id, year, hod_id, user_role } = req.query;
   try {
     let rows;
-    let baseQuery = 'SELECT leaves.*, users.name AS applicant_name FROM leaves JOIN users ON leaves.user_id = users.id';
+    let baseQuery = `
+      SELECT 
+        l.*, 
+        u.name AS applicant_name,
+        u.department AS applicant_department,
+        u.name AS teacher_name,
+        GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS teacher_courses
+      FROM leaves l
+      JOIN users u ON l.user_id = u.id
+      LEFT JOIN teacher_courses tc ON u.id = tc.teacher_id
+      LEFT JOIN courses c ON tc.course_id = c.id
+    `;
     let where = [];
     let params = [];
+    
     if (user_id) {
-      where.push('leaves.user_id = ?');
+      where.push('l.user_id = ?');
       params.push(user_id);
     }
     if (year) {
-      where.push('YEAR(leaves.start_date) = ?');
+      where.push('YEAR(l.start_date) = ?');
       params.push(year);
     }
+    
+    // HOD filtering based on course assignments
+    if (hod_id && user_role === 'hod') {
+      where.push(`
+        l.user_id IN (
+          SELECT DISTINCT tc.teacher_id
+          FROM teacher_courses tc
+          JOIN courses c ON tc.course_id = c.id
+          WHERE c.hod_id = ?
+        )
+      `);
+      params.push(hod_id);
+      
+      // Also filter the courses shown to only those where the HOD is assigned
+      baseQuery = `
+        SELECT 
+          l.*, 
+          u.name AS applicant_name,
+          u.department AS applicant_department,
+          GROUP_CONCAT(DISTINCT c.name ORDER BY c.name SEPARATOR ', ') AS teacher_courses
+        FROM leaves l
+        JOIN users u ON l.user_id = u.id
+        LEFT JOIN teacher_courses tc ON u.id = tc.teacher_id
+        LEFT JOIN courses c ON tc.course_id = c.id AND c.hod_id = ?
+      `;
+      params.unshift(hod_id); // Add hod_id at the beginning for the courses filter
+    }
+    
     if (where.length > 0) {
       baseQuery += ' WHERE ' + where.join(' AND ');
     }
-    baseQuery += ' ORDER BY leaves.start_date DESC';
+    baseQuery += ' GROUP BY l.id, l.user_id, l.start_date, l.end_date, l.reason, l.days, l.status, l.remarks, l.leave_type_id, l.created_at, l.updated_at, u.name, u.department';
+    baseQuery += ' ORDER BY l.start_date DESC';
+    
     [rows] = await db.query(baseQuery, params);
     res.json(rows);
   } catch (err) {
+    console.error('Error fetching leaves:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Update leave status (approve/reject)
+router.patch('/leaves/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  
+  if (!status || !['approved', 'rejected', 'pending'].includes(status)) {
+    return res.status(400).json({ message: 'Valid status (approved, rejected, pending) is required' });
+  }
+  
+  try {
+    await db.query('UPDATE leaves SET status = ?, updated_at = NOW() WHERE id = ?', [status, id]);
+    res.json({ message: 'Leave status updated successfully' });
+  } catch (err) {
+    console.error('Error updating leave status:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });

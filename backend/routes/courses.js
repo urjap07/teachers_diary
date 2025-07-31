@@ -5,7 +5,7 @@ const db = require('../config/db');
 // Get all courses
 router.get('/courses', async (req, res) => {
   try {
-    const [courses] = await db.query('SELECT id, name, code FROM courses');
+    const [courses] = await db.query('SELECT id, name, code, hod_id FROM courses');
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -58,12 +58,12 @@ router.post('/teacher-courses/assign', async (req, res) => {
 
 // Add a new course
 router.post('/courses', async (req, res) => {
-  const { name, code } = req.body;
+  const { name, code, hod_id } = req.body;
   if (!name || !code) {
     return res.status(400).json({ message: 'Name and code are required' });
   }
   try {
-    await db.query('INSERT INTO courses (name, code) VALUES (?, ?)', [name, code]);
+    await db.query('INSERT INTO courses (name, code, hod_id) VALUES (?, ?, ?)', [name, code, hod_id || null]);
     res.json({ message: 'Course added successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -73,12 +73,12 @@ router.post('/courses', async (req, res) => {
 // Update a course
 router.put('/courses/:id', async (req, res) => {
   const { id } = req.params;
-  const { name, code } = req.body;
+  const { name, code, hod_id } = req.body;
   if (!name || !code) {
     return res.status(400).json({ message: 'Name and code are required' });
   }
   try {
-    await db.query('UPDATE courses SET name=?, code=? WHERE id=?', [name, code, id]);
+    await db.query('UPDATE courses SET name=?, code=?, hod_id=? WHERE id=?', [name, code, hod_id || null, id]);
     res.json({ message: 'Course updated successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });

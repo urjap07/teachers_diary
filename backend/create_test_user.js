@@ -8,8 +8,8 @@ async function createTestUser() {
     if (existing.length === 0) {
       // Create test admin user
       await db.query(
-        'INSERT INTO users (name, email, mobile, password_hash, role, is_hod, is_principal) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['Admin User', 'admin@test.com', '1111111111', 'admin123', 'admin', 0, 0]
+        'INSERT INTO users (name, email, mobile, password_hash, role, is_principal) VALUES (?, ?, ?, ?, ?, ?)',
+        ['Admin User', 'admin@test.com', '1111111111', 'admin123', 'admin', 0]
       );
       console.log('Test admin user created: admin@test.com / admin123');
     } else {
@@ -22,8 +22,8 @@ async function createTestUser() {
     if (existingTeacher.length === 0) {
       // Create test teacher user
       await db.query(
-        'INSERT INTO users (name, email, mobile, password_hash, role, is_hod, is_principal) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        ['Test Teacher', 'teacher@test.com', '2222222222', 'teacher123', 'teacher', 0, 0]
+        'INSERT INTO users (name, email, mobile, password_hash, role, is_principal) VALUES (?, ?, ?, ?, ?, ?)',
+        ['Test Teacher', 'teacher@test.com', '2222222222', 'teacher123', 'teacher', 0]
       );
       console.log('Test teacher user created: teacher@test.com / teacher123');
     } else {
