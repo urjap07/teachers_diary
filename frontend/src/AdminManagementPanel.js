@@ -1146,7 +1146,9 @@ function ConfirmDeleteLeaveCategoryModal({ category, onClose, onConfirm }) {
   );
 }
 
-function LeaveActionModal({ leave, onClose, onApprove, onReject }) {
+function LeaveActionModal({ leave, onClose, onApprove, onReject, onSetPending }) {
+  const currentStatus = leave.status || 'pending';
+  
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
@@ -1168,6 +1170,11 @@ function LeaveActionModal({ leave, onClose, onApprove, onReject }) {
               <div><span className="font-semibold">End Date:</span> {new Date(leave.end_date).toLocaleDateString()}</div>
               <div><span className="font-semibold">Days:</span> {leave.days}</div>
               <div><span className="font-semibold">Reason:</span> {leave.reason}</div>
+              <div><span className="font-semibold">Current Status:</span> <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                currentStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                currentStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                'bg-yellow-100 text-yellow-800'
+              }`}>{currentStatus}</span></div>
             </div>
           </div>
           <p className="text-gray-700 text-center mb-6">
@@ -1181,18 +1188,30 @@ function LeaveActionModal({ leave, onClose, onApprove, onReject }) {
           >
             Cancel
           </button>
-          <button 
-            onClick={onReject} 
-            className="px-6 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700"
-          >
-            Reject
-          </button>
-          <button 
-            onClick={onApprove} 
-            className="px-6 py-2 rounded-xl bg-green-600 text-white font-semibold shadow hover:bg-green-700"
-          >
-            Approve
-          </button>
+          {currentStatus !== 'pending' && (
+            <button 
+              onClick={onSetPending} 
+              className="px-6 py-2 rounded-xl bg-yellow-600 text-white font-semibold shadow hover:bg-yellow-700"
+            >
+              Set to Pending
+            </button>
+          )}
+          {currentStatus !== 'rejected' && (
+            <button 
+              onClick={onReject} 
+              className="px-6 py-2 rounded-xl bg-red-600 text-white font-semibold shadow hover:bg-red-700"
+            >
+              Reject
+            </button>
+          )}
+          {currentStatus !== 'approved' && (
+            <button 
+              onClick={onApprove} 
+              className="px-6 py-2 rounded-xl bg-green-600 text-white font-semibold shadow hover:bg-green-700"
+            >
+              Approve
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -1275,6 +1294,12 @@ export default function AdminManagementPanel() {
   const [isDeletingLeaveCategory, setIsDeletingLeaveCategory] = useState(false);
 
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
 
   useEffect(() => {
     if (activeTab === 'teachers') {
@@ -2014,6 +2039,38 @@ export default function AdminManagementPanel() {
     }
   };
 
+  const handleSetPendingLeave = async () => {
+    if (!selectedLeave) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/leaves/${selectedLeave.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'pending' }),
+      });
+      if (res.ok) {
+        alert('Leave status set to pending successfully!');
+        setShowLeaveActionModal(false);
+        setSelectedLeave(null);
+        // Refresh leaves data
+        if (activeTab === 'leaves' && user?.role === 'admin') {
+          let url = 'http://localhost:5000/api/leaves';
+          const params = [];
+          if (selectedTeacher) params.push(`user_id=${selectedTeacher.id}`);
+          if (selectedYear) params.push(`year=${selectedYear}`);
+          if (params.length > 0) url += '?' + params.join('&');
+          fetch(url)
+            .then(res => res.json())
+            .then(data => setLeaves(Array.isArray(data) ? data : []));
+        }
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to set leave to pending');
+      }
+    } catch (err) {
+      alert('Network error');
+    }
+  };
+
   // Calculate analytics for leave records
   const leaveTypeCounts = {};
   let totalLeaves = 0;
@@ -2043,15 +2100,15 @@ export default function AdminManagementPanel() {
   }, [activeTab, selectedTeacher, selectedYear, user?.role]);
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-gradient-to-br from-blue-200 via-pink-100 to-purple-200">
       {/* Sidebar */}
-      <aside className="w-64 bg-white/60 shadow-lg p-6 flex flex-col gap-6 border-r border-white/40 min-h-screen">
-        <h1 className="text-3xl font-extrabold text-blue-900 mb-8 text-center drop-shadow">Admin Management</h1>
-        <nav className="flex flex-col gap-4">
+      <aside className="w-full lg:w-64 bg-white/60 shadow-lg p-4 lg:p-6 flex flex-col gap-4 lg:gap-6 border-b lg:border-b-0 lg:border-r border-white/40 min-h-auto lg:min-h-screen">
+        <h1 className="text-2xl lg:text-3xl font-extrabold text-blue-900 mb-4 lg:mb-8 text-center drop-shadow">Admin Management</h1>
+        <nav className="flex flex-row lg:flex-col gap-2 lg:gap-4 overflow-x-auto lg:overflow-x-visible">
           {TABS.map(tab => (
             <button
               key={tab.key}
-              className={`px-4 py-2 rounded-lg text-lg font-semibold transition text-left ${
+              className={`px-3 lg:px-4 py-2 rounded-lg text-sm lg:text-lg font-semibold transition text-center lg:text-left whitespace-nowrap ${
                 activeTab === tab.key
                   ? 'bg-blue-600 text-white shadow'
                   : 'text-blue-800 hover:bg-blue-100'
@@ -2064,7 +2121,24 @@ export default function AdminManagementPanel() {
         </nav>
       </aside>
       {/* Main Content */}
-      <main className="flex-1 p-10 flex flex-col gap-8">
+      <main className="flex-1 p-4 lg:p-10 flex flex-col gap-4 lg:gap-8">
+        {/* Header with Logout Button */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-4 lg:mb-6">
+          <h2 className="text-xl lg:text-2xl font-bold text-blue-800">
+            {activeTab === 'teachers' && 'Teachers Management'}
+            {activeTab === 'courses' && 'Courses Management'}
+            {activeTab === 'subjects' && 'Subjects Management'}
+            {activeTab === 'topics' && 'Topics Management'}
+            {activeTab === 'holidays' && 'Public Holidays Management'}
+            {activeTab === 'leaves' && 'Leave Management'}
+          </h2>
+          <button
+            onClick={handleLogout}
+            className="px-4 lg:px-6 py-2 rounded-xl border border-white/30 bg-white/30 text-blue-800 font-semibold shadow-lg backdrop-blur-xl hover:bg-white/50 hover:text-blue-900 transition text-sm lg:text-base"
+            style={{boxShadow: '0 4px 24px 0 rgba(31, 38, 135, 0.10)', fontWeight: 700}}>
+            Logout
+          </button>
+        </div>
         {activeTab === 'leaves' && user?.role === 'admin' && (
           <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center relative">
             <button
@@ -2385,11 +2459,12 @@ export default function AdminManagementPanel() {
                               {leave.reason || 'No reason'}
                             </td>
                             <td className="px-4 py-2">
-                              <button
-                                className={`px-3 py-1 rounded font-semibold text-xs hover:opacity-80 ${
-                                  leave.status === 'approved' ? 'bg-green-500 text-white hover:bg-green-700' :
-                                  leave.status === 'rejected' ? 'bg-red-500 text-white hover:bg-red-700' :
-                                  'bg-yellow-500 text-white hover:bg-yellow-700'
+                              <span 
+                                className={`px-4 py-2 rounded-full text-xs font-bold cursor-pointer hover:opacity-80 ${
+                                  leave.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  leave.status === 'approved' ? 'bg-green-100 text-green-800' :
+                                  leave.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-700'
                                 }`}
                                 onClick={() => {
                                   setSelectedLeave(leave);
@@ -2397,7 +2472,7 @@ export default function AdminManagementPanel() {
                                 }}
                               >
                                 {leave.status || 'pending'}
-                              </button>
+                              </span>
                             </td>
                           </tr>
                         ));
@@ -2805,6 +2880,7 @@ export default function AdminManagementPanel() {
           onClose={() => { setShowLeaveActionModal(false); setSelectedLeave(null); }}
           onApprove={handleApproveLeave}
           onReject={handleRejectLeave}
+          onSetPending={handleSetPendingLeave}
         />
       )}
       

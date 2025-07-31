@@ -353,8 +353,87 @@ router.patch('/leaves/:id', async (req, res) => {
   }
   
   try {
-    await db.query('UPDATE leaves SET status = ?, updated_at = NOW() WHERE id = ?', [status, id]);
-    res.json({ message: 'Leave status updated successfully' });
+    const conn = await db.getConnection();
+    await conn.beginTransaction();
+    
+    try {
+      // Get current leave details
+      const [[leave]] = await conn.query('SELECT * FROM leaves WHERE id = ?', [id]);
+      if (!leave) {
+        await conn.rollback();
+        conn.release();
+        return res.status(404).json({ message: 'Leave not found' });
+      }
+      
+      const user_id = leave.user_id;
+      const leave_type_id = leave.leave_type_id;
+      const days = parseFloat(leave.days || 1);
+      const year = new Date(leave.start_date || leave.date || leave.created_at).getFullYear();
+      const previousStatus = leave.status;
+      
+      // Get leave type name to check if it's LWP (Leave Without Pay)
+      const [[type]] = await conn.query('SELECT name FROM leave_types WHERE leave_type_id = ?', [leave_type_id]);
+      const leaveTypeName = type ? type.name : '';
+      const isLWP = leaveTypeName && leaveTypeName.indexOf('LWP') !== -1;
+      
+      // Handle different status changes
+      if (status === 'approved') {
+        // Only deduct balance if not LWP and not already approved
+        if (!isLWP && previousStatus !== 'approved') {
+          // Check if balance exists
+          const [[balance]] = await conn.query(
+            'SELECT * FROM leave_balances WHERE user_id = ? AND leave_type_id = ? AND year = ?',
+            [user_id, leave_type_id, year]
+          );
+          
+          if (!balance) {
+            await conn.rollback();
+            conn.release();
+            return res.status(400).json({ message: 'No leave balance found for this leave type and year' });
+          }
+          
+          const available = parseFloat(balance.opening_balance) - parseFloat(balance.used) + parseFloat(balance.adjustments || 0);
+          if (available < days) {
+            await conn.rollback();
+            conn.release();
+            return res.status(400).json({ message: 'Insufficient leave balance' });
+          }
+          
+          // Deduct leave days
+          await conn.query(
+            'UPDATE leave_balances SET used = used + ? WHERE user_id = ? AND leave_type_id = ? AND year = ?',
+            [days, user_id, leave_type_id, year]
+          );
+        }
+      } else if (status === 'rejected') {
+        // If previously approved and not LWP, restore the balance
+        if (previousStatus === 'approved' && !isLWP) {
+          await conn.query(
+            'UPDATE leave_balances SET used = used - ? WHERE user_id = ? AND leave_type_id = ? AND year = ?',
+            [days, user_id, leave_type_id, year]
+          );
+        }
+      } else if (status === 'pending') {
+        // If changing from approved to pending and not LWP, restore the balance
+        if (previousStatus === 'approved' && !isLWP) {
+          await conn.query(
+            'UPDATE leave_balances SET used = used - ? WHERE user_id = ? AND leave_type_id = ? AND year = ?',
+            [days, user_id, leave_type_id, year]
+          );
+        }
+      }
+      
+      // Update leave status
+      await conn.query('UPDATE leaves SET status = ?, updated_at = NOW() WHERE id = ?', [status, id]);
+      
+      await conn.commit();
+      conn.release();
+      res.json({ message: 'Leave status updated successfully' });
+    } catch (err) {
+      await conn.rollback();
+      conn.release();
+      throw err;
+    }
   } catch (err) {
     console.error('Error updating leave status:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
