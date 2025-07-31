@@ -821,14 +821,14 @@ export default function AdminDashboard() {
         {showCourseSummary && (
         <div className="w-full mb-10">
           <div className="bg-white/40 backdrop-blur-lg rounded-xl shadow p-6 border border-white/30">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-              <h2 className="text-2xl font-bold text-blue-800">Course Lecture Summary</h2>
-              <div className="flex items-center gap-2">
-                <label className="font-semibold text-blue-700">Select Month:</label>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+              <h2 className="text-xl lg:text-2xl font-bold text-blue-800">Course Lecture Summary</h2>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="font-semibold text-blue-700 text-sm lg:text-base">Select Month:</label>
                 <select
                   value={selectedCourseMonth}
                   onChange={e => setSelectedCourseMonth(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
                 >
                   {monthOptions.map(m => (
                     <option key={m.value} value={m.value}>{m.label}</option>
@@ -1026,45 +1026,47 @@ export default function AdminDashboard() {
               ) : courseCompletionData.length === 0 ? (
                 <div className="text-gray-400 text-center py-8">No data available.</div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
-                  <thead className="bg-blue-100">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Course</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Topics Covered</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Topics</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Completion %</th>
-                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Progress</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
-                    {courseCompletionData.map((row, idx) => (
-                      <tr key={row.courseName} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
-                        <td className="px-4 py-2 font-semibold text-blue-800">{row.courseName}</td>
-                        <td className="px-4 py-2">{row.coveredCount}</td>
-                        <td className="px-4 py-2">{row.totalTopics}</td>
-                        <td className="px-4 py-2">{row.percent}%</td>
-                        <td className="px-4 py-2">
-                          <div className="w-full h-5 bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 rounded-full shadow-inner relative overflow-hidden">
-                            <div
-                              className="h-5 rounded-full transition-all flex items-center justify-center bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 shadow"
-                              style={{ width: `${row.percent}%`, minWidth: '2rem', position: 'absolute', left: 0, top: 0 }}
-                            >
-                              <span className="w-full text-center font-bold text-white text-xs drop-shadow" style={{ position: 'relative', zIndex: 2 }}>
-                                {row.percent}%
-                              </span>
-                            </div>
-                            {/* Always show the label, even if bar is very small */}
-                            {parseFloat(row.percent) < 15 && (
-                              <span className="absolute left-2 top-0 h-5 flex items-center font-bold text-blue-700 text-xs" style={{ zIndex: 1 }}>
-                                {row.percent}%
-                              </span>
-                            )}
-                          </div>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow">
+                    <thead className="bg-blue-100">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Course</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Topics Covered</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Total Topics</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Completion %</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Progress</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {courseCompletionData.map((row, idx) => (
+                        <tr key={row.courseName} className={idx % 2 === 0 ? 'bg-blue-50' : ''}>
+                          <td className="px-4 py-2 font-semibold text-blue-800">{row.courseName}</td>
+                          <td className="px-4 py-2">{row.coveredCount}</td>
+                          <td className="px-4 py-2">{row.totalTopics}</td>
+                          <td className="px-4 py-2">{row.percent}%</td>
+                          <td className="px-4 py-2">
+                            <div className="w-full h-5 bg-gradient-to-r from-blue-100 via-blue-50 to-blue-100 rounded-full shadow-inner relative overflow-hidden">
+                              <div
+                                className="h-5 rounded-full transition-all flex items-center justify-center bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 shadow"
+                                style={{ width: `${row.percent}%`, minWidth: '2rem', position: 'absolute', left: 0, top: 0 }}
+                              >
+                                <span className="w-full text-center font-bold text-white text-xs drop-shadow" style={{ position: 'relative', zIndex: 2 }}>
+                                  {row.percent}%
+                                </span>
+                              </div>
+                              {/* Always show the label, even if bar is very small */}
+                              {parseFloat(row.percent) < 15 && (
+                                <span className="absolute left-2 top-0 h-5 flex items-center font-bold text-blue-700 text-xs" style={{ zIndex: 1 }}>
+                                  {row.percent}%
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           </div>
@@ -1101,24 +1103,28 @@ export default function AdminDashboard() {
           </div>
         )}
         <div className="w-full mb-10">
-          <div className="bg-white/40 backdrop-blur-lg rounded-xl shadow p-6 mb-8 border border-white/30 mx-auto" style={{width: '80vw', maxWidth: '1600px'}}>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
-              <h2 className="text-2xl font-bold text-blue-800">Teachers</h2>
-              <div className="flex items-center gap-2">
-                <label className="font-semibold text-blue-700 ml-4">Start Date:</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <label className="font-semibold text-blue-700 ml-4">End Date:</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
+          <div className="bg-white/40 backdrop-blur-lg rounded-xl shadow p-6 mb-8 border border-white/30 mx-auto w-full max-w-full lg:max-w-[1600px]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+              <h2 className="text-xl lg:text-2xl font-bold text-blue-800">Teachers</h2>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 lg:gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <label className="font-semibold text-blue-700 text-sm lg:text-base">Start Date:</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
+                  />
+                </div>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <label className="font-semibold text-blue-700 text-sm lg:text-base">End Date:</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={e => setEndDate(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
+                  />
+                </div>
               </div>
             </div>
             <div className="overflow-x-auto diary-log-table">

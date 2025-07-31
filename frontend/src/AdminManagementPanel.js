@@ -2140,22 +2140,22 @@ export default function AdminManagementPanel() {
           </button>
         </div>
         {activeTab === 'leaves' && user?.role === 'admin' && (
-          <div className="mb-6 flex flex-col sm:flex-row gap-4 items-center relative">
+          <div className="mb-4 lg:mb-6 flex flex-col sm:flex-row gap-2 lg:gap-4 items-center relative">
             <button
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition mb-4"
+              className="px-3 lg:px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 transition text-sm lg:text-base"
               onClick={() => { setShowLeaveBalances(v => { if (!v) { setShowAnalytics(false); } return !v; }); }}
             >
               Leave Balances
             </button>
             <button
-              className="px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold shadow hover:bg-purple-700 transition mb-4"
+              className="px-3 lg:px-4 py-2 rounded-lg bg-purple-600 text-white font-semibold shadow hover:bg-purple-700 transition text-sm lg:text-base"
               onClick={() => { setShowAnalytics(v => { if (!v) { setShowLeaveBalances(false); } return !v; }); }}
             >
               Analytics
             </button>
             {(user?.is_hod || user?.is_principal || user?.role === 'admin') && (
               <button
-                className="px-4 py-2 rounded-lg bg-orange-600 text-white font-semibold shadow hover:bg-orange-700 transition mb-4"
+                className="px-3 lg:px-4 py-2 rounded-lg bg-orange-600 text-white font-semibold shadow hover:bg-orange-700 transition text-sm lg:text-base"
                 onClick={() => {     
                   setShowAnalytics(false);
                   setShowLeaveBalances(false);          
@@ -2168,9 +2168,9 @@ export default function AdminManagementPanel() {
           </div>
         )}
         {activeTab === 'leaves' && user?.role === 'admin' && showLeaveBalances && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 shadow">
-            <div className="flex flex-col sm:flex-row gap-4 items-center relative mb-4">
-              <label className="font-semibold text-blue-700">Search Teacher:</label>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 lg:p-4 mb-6 lg:mb-8 shadow">
+            <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 items-start sm:items-center relative mb-4">
+              <label className="font-semibold text-blue-700 text-sm lg:text-base">Search Teacher:</label>
               <input
                 type="text"
                 value={teacherSearch}
@@ -2181,17 +2181,17 @@ export default function AdminManagementPanel() {
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                 placeholder="Type to search..."
-                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                style={{ minWidth: 220 }}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base w-full sm:w-auto"
+                style={{ minWidth: '200px' }}
               />
               {showSuggestions && teacherSearch && (
-                <ul className="absolute top-14 left-32 z-10 bg-white border border-blue-200 rounded-lg shadow-lg w-[220px] max-h-60 overflow-y-auto">
+                <ul className="absolute top-12 sm:top-14 left-0 sm:left-32 z-10 bg-white border border-blue-200 rounded-lg shadow-lg w-full sm:w-[220px] max-h-60 overflow-y-auto">
                   {teacherOptions
                     .filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase()))
                     .map(t => (
                       <li
                         key={t.id}
-                        className="px-4 py-2 cursor-pointer hover:bg-blue-100 text-blue-900"
+                        className="px-3 lg:px-4 py-2 cursor-pointer hover:bg-blue-100 text-blue-900 text-sm lg:text-base"
                         onMouseDown={() => {
                           setSelectedTeacher(t);
                           setTeacherSearch(t.name);
@@ -2202,17 +2202,17 @@ export default function AdminManagementPanel() {
                       </li>
                     ))}
                   {teacherOptions.filter(t => t.name.toLowerCase().includes(teacherSearch.toLowerCase())).length === 0 && (
-                    <li className="px-4 py-2 text-gray-400">No teachers found</li>
+                    <li className="px-3 lg:px-4 py-2 text-gray-400 text-sm lg:text-base">No teachers found</li>
                   )}
                 </ul>
               )}
               {/* Year dropdown */}
-              <label className="font-semibold text-blue-700 ml-4">Year:</label>
+              <label className="font-semibold text-blue-700 text-sm lg:text-base">Year:</label>
               <select
                 value={selectedYear}
                 onChange={e => setSelectedYear(Number(e.target.value))}
-                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-                style={{ minWidth: 120 }}
+                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base"
+                style={{ minWidth: '100px' }}
               >
                 {(() => {
                   const currentYear = new Date().getFullYear();
@@ -2225,24 +2225,25 @@ export default function AdminManagementPanel() {
                 })()}
               </select>
               <button
-                className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition text-sm ml-auto"
+                className="px-3 lg:px-4 py-2 rounded-lg bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition text-sm lg:text-base ml-auto"
                 onClick={handleExportLeaveBalances}
               >
                 Export to Excel
               </button>
             </div>
-            <h3 className="font-semibold text-blue-700 mb-2">{selectedTeacher ? `${selectedTeacher.name}'s` : 'Your'} Leave Balances ({new Date().getFullYear()})</h3>
-            <table className="min-w-full divide-y divide-gray-200 mb-2">
-              <thead className="bg-blue-100">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
-                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
-                </tr>
-              </thead>
+            <h3 className="font-semibold text-blue-700 mb-2 text-sm lg:text-base">{selectedTeacher ? `${selectedTeacher.name}'s` : 'Your'} Leave Balances ({new Date().getFullYear()})</h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 mb-2">
+                <thead className="bg-blue-100">
+                  <tr>
+                    <th className="px-2 lg:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                    <th className="px-2 lg:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
+                    <th className="px-2 lg:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
+                    <th className="px-2 lg:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
+                    <th className="px-2 lg:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+                    <th className="px-2 lg:px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
+                  </tr>
+                </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {mergedBalances.map((b, idx) => (
                   <tr key={idx}>
@@ -2293,6 +2294,7 @@ export default function AdminManagementPanel() {
                 ))}
               </tbody>
             </table>
+            </div>
             {adjustModal.open && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                 <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
@@ -2631,29 +2633,33 @@ export default function AdminManagementPanel() {
               <h2 className="text-2xl font-bold text-blue-800">Manage Subjects</h2>
               <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddSubject(true)}>+ Add Subject</button>
             </div>
-            <div className="flex gap-4 mb-6 items-center">
-              <label className="font-semibold text-blue-700">Course:</label>
-              <select
-                value={selectedSubjectCourse}
-                onChange={e => setSelectedSubjectCourse(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="">All Courses</option>
-                {subjectCourses.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <label className="font-semibold text-blue-700 ml-4">Semester:</label>
-              <select
-                value={selectedSubjectSemester}
-                onChange={e => setSelectedSubjectSemester(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="">All Semesters</option>
-                {[1,2,3,4,5,6].map(num => (
-                  <option key={num} value={`Semester ${num}`}>{`Semester ${num}`}</option>
-                ))}
-              </select>
+            <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mb-6 items-start sm:items-center">
+              <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-start sm:items-center">
+                <label className="font-semibold text-blue-700 text-sm lg:text-base">Course:</label>
+                <select
+                  value={selectedSubjectCourse}
+                  onChange={e => setSelectedSubjectCourse(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
+                >
+                  <option value="">All Courses</option>
+                  {subjectCourses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-start sm:items-center">
+                <label className="font-semibold text-blue-700 text-sm lg:text-base">Semester:</label>
+                <select
+                  value={selectedSubjectSemester}
+                  onChange={e => setSelectedSubjectSemester(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
+                >
+                  <option value="">All Semesters</option>
+                  {[1,2,3,4,5,6].map(num => (
+                    <option key={num} value={`Semester ${num}`}>{`Semester ${num}`}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200 overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base mb-6">
@@ -2692,29 +2698,33 @@ export default function AdminManagementPanel() {
               <h2 className="text-2xl font-bold text-blue-800">Manage Topics</h2>
               <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddTopic(true)}>+ Add Topic</button>
             </div>
-            <div className="flex gap-4 mb-6 items-center">
-              <label className="font-semibold text-blue-700">Course:</label>
-              <select
-                value={selectedTopicCourse}
-                onChange={e => { setSelectedTopicCourse(e.target.value); setSelectedTopicSubject(''); }}
-                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="">All Courses</option>
-                {topicCourses.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <label className="font-semibold text-blue-700 ml-4">Subject:</label>
-              <select
-                value={selectedTopicSubject}
-                onChange={e => setSelectedTopicSubject(e.target.value)}
-                className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="">All Subjects</option>
-                {topicSubjects.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+            <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mb-6 items-start sm:items-center">
+              <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-start sm:items-center">
+                <label className="font-semibold text-blue-700 text-sm lg:text-base">Course:</label>
+                <select
+                  value={selectedTopicCourse}
+                  onChange={e => { setSelectedTopicCourse(e.target.value); setSelectedTopicSubject(''); }}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
+                >
+                  <option value="">All Courses</option>
+                  {topicCourses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-start sm:items-center">
+                <label className="font-semibold text-blue-700 text-sm lg:text-base">Subject:</label>
+                <select
+                  value={selectedTopicSubject}
+                  onChange={e => setSelectedTopicSubject(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-blue-200 bg-white/80 text-blue-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm lg:text-base min-w-[150px] max-w-full"
+                >
+                  <option value="">All Subjects</option>
+                  {topicSubjects.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200 overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">

@@ -9,7 +9,7 @@ router.post('/login', async (req, res) => {
   console.log('Login attempt:', { identifier, password });
   try {
     const [users] = await db.query(
-      'SELECT id, name, email, role, department, is_principal FROM users WHERE email = ? AND password_hash = ? LIMIT 1',
+      'SELECT id, name, email, role, department, is_principal, shift FROM users WHERE email = ? AND password_hash = ? LIMIT 1',
       [identifier, password]
     );
     console.log('Query result:', users);
@@ -138,6 +138,24 @@ router.patch('/teacher/:id/active', async (req, res) => {
     await db.query('UPDATE users SET active=? WHERE id=? AND role=?', [active, id, 'teacher']);
     res.json({ message: 'Teacher status updated' });
   } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Get user by ID (for fetching shift data)
+router.get('/user/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [users] = await db.query(
+      'SELECT id, name, email, role, department, is_principal, shift FROM users WHERE id = ? LIMIT 1',
+      [id]
+    );
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json(users[0]);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });

@@ -229,7 +229,23 @@ export default function DiaryEntryForm({ userId }) {
   };
   const user = JSON.parse(localStorage.getItem('user'));
   const userName = user?.name || user?.username || '';
-  const shift = user?.shift;
+  // Temporary fallback: if shift is undefined, try to get it from the database
+  const [shift, setShift] = useState(user?.shift);
+  
+  // Fetch shift data if not available
+  useEffect(() => {
+    if (!shift && user?.id) {
+      fetch(`http://localhost:5000/api/user/${user.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.shift) {
+            setShift(data.shift);
+          }
+        })
+        .catch(err => console.log('Could not fetch user shift:', err));
+    }
+  }, [shift, user?.id]);
+  
   const { start: shiftStart, end: shiftEnd } = shift ? shiftTimings[shift] : { start: undefined, end: undefined };
   console.log('User:', user, 'Shift:', shift, 'Shift times:', shiftStart, shiftEnd);
 
@@ -244,7 +260,7 @@ export default function DiaryEntryForm({ userId }) {
     }
     return options;
   }
-  const allowedTimes = (shiftStart && shiftEnd) ? getTimeOptions(shiftStart, shiftEnd) : [];
+  const allowedTimes = (shiftStart && shiftEnd) ? getTimeOptions(shiftStart, shiftEnd) : getTimeOptions('08:00', '20:00');
 
 
 

@@ -269,17 +269,18 @@ export default function TeacherDashboard({ userId }) {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 shadow relative">
               {/* Remove the Export to Excel button from the leave balances table */}
               <h3 className="font-semibold text-blue-700 mb-2">Your Leave Balances ({new Date().getFullYear()})</h3>
-              <table className="min-w-full divide-y divide-gray-200 mb-2">
-                <thead className="bg-blue-100">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
-                    <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                  </tr>
-                </thead>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 mb-2">
+                  <thead className="bg-blue-100">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Type</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Opening</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Used</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Adjustments</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Available</th>
+                      <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                    </tr>
+                  </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {leaveTypes.filter(type => [
                     'Casual Leave (CL)',
@@ -347,6 +348,7 @@ export default function TeacherDashboard({ userId }) {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           </div>
         )}
