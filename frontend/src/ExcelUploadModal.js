@@ -106,7 +106,7 @@ export default function ExcelUploadModal({ type, onClose, onUploadSuccess }) {
       case 'courses':
         return 'Upload courses with columns: Course Name/name, Course Code/code, HOD ID/hod_id (flexible naming)';
       case 'subjects':
-        return 'Upload subjects with columns: Subject Name, Course Code, Semester';
+        return 'Upload subjects with columns: Subject Name/name, Course Code/code/course_id, Semester/semester (flexible naming)';
       case 'topics':
         return 'Upload topics with columns: Topic Name, Subject Name, Course Code';
       case 'subtopics':
