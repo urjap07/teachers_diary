@@ -416,6 +416,11 @@ export default function AdminDashboard() {
     fetchTeachers();
   }, [startDate, endDate]);
 
+  // Reset to first page when filtered data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredDiaryEntries.length]);
+
   const fetchTeachers = async () => {
   };
 
@@ -616,6 +621,8 @@ export default function AdminDashboard() {
   }
 
   const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   function handleLogout() {
     localStorage.removeItem('token');
@@ -760,6 +767,24 @@ export default function AdminDashboard() {
     XLSX.utils.book_append_sheet(wb, ws, 'Diary Entries');
     XLSX.writeFile(wb, `diary_entries_${option}_wise.xlsx`);
     setShowExportModal(false);
+  };
+
+  // Pagination logic for Teachers table
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredDiaryEntries.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredDiaryEntries.length / itemsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(prev + 1, totalPages));
   };
 
   return (
@@ -1145,10 +1170,10 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {filteredDiaryEntries.length === 0 ? (
+                  {currentItems.length === 0 ? (
                     <tr><td colSpan={11} className="text-center py-4 text-gray-400">No diary entries found.</td></tr>
                   ) : (
-                    filteredDiaryEntries.map((e, idx) => (
+                    currentItems.map((e, idx) => (
                       <tr
                         key={e.id}
                         className={idx % 2 === 0 ? 'bg-blue-50' : ''}
@@ -1171,6 +1196,43 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            {/* Pagination Controls */}
+            {filteredDiaryEntries.length > itemsPerPage && (
+              <div className="flex items-center justify-between mt-4 px-4">
+                <div className="text-sm text-gray-700">
+                  Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredDiaryEntries.length)} of {filteredDiaryEntries.length} entries
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded-lg border border-blue-300 bg-white text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-3 py-1 rounded-lg border ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'border-blue-300 bg-white text-blue-600 hover:bg-blue-50'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded-lg border border-blue-300 bg-white text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         {editTeacher && <EditTeacherModal teacher={editTeacher} onClose={() => { setEditTeacher(null); }} onSubmit={handleEditTeacher} tableRef={teachersTableRef} containerRef={containerRef} diaryLogRowRefs={diaryLogRowRefs} diaryLogRowCount={filteredDiaryEntries.length} />}

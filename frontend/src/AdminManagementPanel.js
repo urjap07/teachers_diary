@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import TimeOffForm from './TimeOffForm';
 import PublicHolidaysPanel from './PublicHolidaysPanel';
 import LeaveApprovalDashboard from './LeaveApprovalDashboard';
+import ExcelUploadModal from './ExcelUploadModal';
 import ExcelJS from 'exceljs';
 
 import { useNavigate } from 'react-router-dom';
@@ -745,6 +746,7 @@ function SubtopicModal({ topic, onClose }) {
   const [form, setForm] = React.useState({ name: '', description: '', order: '' });
   const [errors, setErrors] = React.useState({});
   const [deleteSubtopic, setDeleteSubtopic] = React.useState(null);
+  const [showUploadModal, setShowUploadModal] = React.useState(false);
 
   React.useEffect(() => {
     if (!topic) return;
@@ -891,10 +893,29 @@ function SubtopicModal({ topic, onClose }) {
                 <button type="button" className="w-full mt-2 py-3 rounded-xl border border-white/30 bg-gray-200 text-blue-700 font-bold shadow-lg hover:bg-gray-300 transition" onClick={() => { setEditSubtopic(null); setForm({ name: '', description: '', order: '' }); setShowAdd(false); }}>Cancel</button>
               </form>
             ) : (
-              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition mb-2" onClick={() => { setShowAdd(true); setEditSubtopic(null); setForm({ name: '', description: '', order: '' }); }}>+ Add Subtopic</button>
+              <div className="flex gap-3 mb-2">
+                <button 
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white font-bold shadow hover:bg-green-700 transition" 
+                  onClick={() => setShowUploadModal(true)}
+                >
+                  📤 Upload Excel
+                </button>
+                <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => { setShowAdd(true); setEditSubtopic(null); setForm({ name: '', description: '', order: '' }); }}>+ Add Subtopic</button>
+              </div>
             )}
             {deleteSubtopic && (
               <ConfirmDeleteSubtopicModal subtopic={deleteSubtopic} onClose={() => setDeleteSubtopic(null)} onConfirm={confirmDelete} />
+            )}
+            {showUploadModal && (
+              <ExcelUploadModal
+                type="subtopics"
+                onClose={() => setShowUploadModal(false)}
+                onUploadSuccess={() => {
+                  fetch(`http://localhost:5000/api/subtopics?topic_id=${topic.id}`)
+                    .then(res => res.json())
+                    .then(data => setSubtopics(Array.isArray(data) ? data : []));
+                }}
+              />
             )}
           </>
         )}
@@ -1292,6 +1313,8 @@ export default function AdminManagementPanel() {
   const [isEditingLeaveCategory, setIsEditingLeaveCategory] = useState(false);
   const [deleteLeaveCategory, setDeleteLeaveCategory] = useState(null);
   const [isDeletingLeaveCategory, setIsDeletingLeaveCategory] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadType, setUploadType] = useState('');
 
   const navigate = useNavigate();
 
@@ -2596,7 +2619,15 @@ export default function AdminManagementPanel() {
           <section>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-blue-800">Manage Courses</h2>
-              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddCourse(true)}>+ Add Course</button>
+              <div className="flex gap-3">
+                <button 
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white font-bold shadow hover:bg-green-700 transition" 
+                  onClick={() => { setUploadType('courses'); setShowUploadModal(true); }}
+                >
+                  📤 Upload Excel
+                </button>
+                <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddCourse(true)}>+ Add Course</button>
+              </div>
             </div>
             <div className="bg-white/80 rounded-xl shadow p-6 border border-blue-200 overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 border border-blue-200 rounded-lg shadow text-base">
@@ -2631,7 +2662,15 @@ export default function AdminManagementPanel() {
           <section>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-blue-800">Manage Subjects</h2>
-              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddSubject(true)}>+ Add Subject</button>
+              <div className="flex gap-3">
+                <button 
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white font-bold shadow hover:bg-green-700 transition" 
+                  onClick={() => { setUploadType('subjects'); setShowUploadModal(true); }}
+                >
+                  📤 Upload Excel
+                </button>
+                <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddSubject(true)}>+ Add Subject</button>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mb-6 items-start sm:items-center">
               <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-start sm:items-center">
@@ -2696,7 +2735,15 @@ export default function AdminManagementPanel() {
           <section>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-blue-800">Manage Topics</h2>
-              <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddTopic(true)}>+ Add Topic</button>
+              <div className="flex gap-3">
+                <button 
+                  className="px-4 py-2 rounded-xl bg-green-600 text-white font-bold shadow hover:bg-green-700 transition" 
+                  onClick={() => { setUploadType('topics'); setShowUploadModal(true); }}
+                >
+                  📤 Upload Excel
+                </button>
+                <button className="px-6 py-2 rounded-xl bg-blue-600 text-white font-bold shadow hover:bg-blue-700 transition" onClick={() => setShowAddTopic(true)}>+ Add Topic</button>
+              </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 mb-6 items-start sm:items-center">
               <div className="flex flex-col sm:flex-row gap-2 lg:gap-4 items-start sm:items-center">
@@ -2891,6 +2938,31 @@ export default function AdminManagementPanel() {
           onApprove={handleApproveLeave}
           onReject={handleRejectLeave}
           onSetPending={handleSetPendingLeave}
+        />
+      )}
+      {showUploadModal && (
+        <ExcelUploadModal
+          type={uploadType}
+          onClose={() => { setShowUploadModal(false); setUploadType(''); }}
+          onUploadSuccess={() => {
+            // Refresh data based on the upload type
+            if (uploadType === 'courses') {
+              fetch('http://localhost:5000/api/courses')
+                .then(res => res.json())
+                .then(data => setCourses(Array.isArray(data) ? data : []))
+                .catch(() => setCourses([]));
+            } else if (uploadType === 'subjects') {
+              fetch('http://localhost:5000/api/subjects')
+                .then(res => res.json())
+                .then(data => setSubjects(Array.isArray(data) ? data : []))
+                .catch(() => setSubjects([]));
+            } else if (uploadType === 'topics') {
+              fetch('http://localhost:5000/api/topics')
+                .then(res => res.json())
+                .then(data => setTopics(Array.isArray(data) ? data : []))
+                .catch(() => setTopics([]));
+            }
+          }}
         />
       )}
       

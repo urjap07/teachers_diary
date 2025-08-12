@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 export default function Login({ onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [loginError, setLoginError] = useState("");
   const navigate = useNavigate();
@@ -76,14 +77,35 @@ export default function Login({ onLoginSuccess }) {
           </div>
           <div className="mb-6">
             <label className="block text-gray-800 mb-2 font-semibold">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={password}
-              onChange={handleChange}
-              className={`w-full px-4 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.password ? 'ring-2 ring-red-400' : ''}`}
-              placeholder="Enter your password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={password}
+                onChange={handleChange}
+                className={`w-full px-4 pr-12 py-3 border-none rounded-lg bg-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900 placeholder-gray-400 shadow-inner ${errors.password ? 'ring-2 ring-red-400' : ''}`}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(prev => !prev)}
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-blue-600"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 4c4.77 0 8 4.2 8 6s-3.23 6-8 6-8-4.2-8-6 3.23-6 8-6zm0 2C6.86 6 4.42 8.33 3.53 10 4.42 11.67 6.86 14 10 14s5.58-2.33 6.47-4C15.58 8.33 13.14 6 10 6zm0 2a2 2 0 110 4 2 2 0 010-4z" />
+                    <path d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-14-14z" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M10 4c4.77 0 8 4.2 8 6s-3.23 6-8 6-8-4.2-8-6 3.23-6 8-6zm0 2C6.86 6 4.42 8.33 3.53 10 4.42 11.67 6.86 14 10 14s5.58-2.33 6.47-4C15.58 8.33 13.14 6 10 6zm0 2a2 2 0 110 4 2 2 0 010-4z" />
+                  </svg>
+                )}
+              </button>
+            </div>
             {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
           </div>
           <button
