@@ -414,7 +414,7 @@ function AssignCoursesModal({ teacher, onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-2xl w-full relative flex flex-col justify-center items-center">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-4xl w-full relative flex flex-col justify-center items-center">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
           onClick={onClose}
@@ -983,7 +983,7 @@ function AddLeaveCategoryModal({ onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+      <div className="bg-white p-8 rounded-4xl shadow-2xl max-w-4xl w-full relative flex flex-col justify-center items-center">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
           onClick={onClose}
@@ -1082,7 +1082,7 @@ function EditLeaveCategoryModal({ category, onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full relative flex flex-col justify-center items-center">
+      <div className="bg-white p-8 rounded-2xl shadow-4xl max-w-md w-full relative flex flex-col justify-center items-center">
         <button
           className="absolute top-2 right-2 text-gray-500 hover:text-blue-700 text-2xl font-bold"
           onClick={onClose}
@@ -2144,7 +2144,7 @@ export default function AdminManagementPanel() {
         </nav>
       </aside>
       {/* Main Content */}
-      <main className="flex-1 p-4 lg:p-10 flex flex-col gap-4 lg:gap-8">
+      <main className="flex-1 p-4 lg:p-10 flex flex-col gap-4 lg:gap-8 min-w-0">
         {/* Header with Logout Button */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-4 lg:mb-6">
           <h2 className="text-xl lg:text-2xl font-bold text-blue-800">
